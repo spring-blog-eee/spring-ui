@@ -12,8 +12,8 @@ export const authApi = {
   },
   
   // Request password reset
-  requestPasswordReset(email) {
-    return axios.post(`/auth/mail/send/${email}`, { email })
+  sendVerifyCode(email) {
+    return axios.get(`api/auth/mail/send/${email}`, { email })
   },
   
   // Reset password
@@ -33,7 +33,7 @@ export const authApi = {
   
   // Send verification code
   sendVerificationCode(email) {
-    return axios.post('/auth/send-code', { email })
+    return axios.get(`/auth/mail/send/${email}`)
   },
   
   // Verify code

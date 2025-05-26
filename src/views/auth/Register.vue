@@ -37,9 +37,9 @@
             prefix-icon="Key" />
         </el-form-item>
 
-        <el-form-item v-if="showVerification" prop="verificationCode">
+        <el-form-item v-if="showVerification" prop="emailCode">
           <div class="verification-group">
-            <el-input v-model="registerForm.verificationCode" placeholder="验证码" prefix-icon="Check" />
+            <el-input v-model="registerForm.emailCode" placeholder="验证码" prefix-icon="Check" />
             <el-button type="primary" :disabled="countdown > 0" @click="sendVerificationCode">
               {{ countdown > 0 ? `重新发送 ${countdown}s` : '发送验证码' }}
             </el-button>
@@ -146,7 +146,7 @@ const rules = {
   confirmPassword: [
     { required: true, validator: validateConfirmPass, trigger: 'blur' }
   ],
-  verificationCode: [
+  emailCode: [
     { required: true, message: '请输入验证码', trigger: 'blur' },
     { len: 6, message: '验证码必须是6位数字', trigger: 'blur' }
   ]
@@ -158,7 +158,12 @@ const sendVerificationCode = async () => {
     // Validate email first
     await formRef.value.validateField('email')
 
-    // In a real app, this would send the verification code to the email
+    const response = await authApi.sendVerifyCode(registerForm.email)
+    console.log(response)
+    if(response.data.code !== 200) {
+      ElMessage.error(response.data.message)
+      return
+    }
     ElMessage.success(`验证码已发送至 ${registerForm.email}`)
 
     // Set countdown for resend button
@@ -169,11 +174,6 @@ const sendVerificationCode = async () => {
         clearInterval(timer)
       }
     }, 1000)
-
-    // For demo purposes, auto-fill the verification code
-    setTimeout(() => {
-      registerForm.verificationCode = '123456'
-    }, 2000)
 
   } catch (error) {
     console.error('Email validation failed:', error)
@@ -191,28 +191,25 @@ const handleSubmit = async () => {
       return
     }
 
-    // If verification is enabled but code not sent
-    if (showVerification.value && !registerForm.verificationCode) {
-      ElMessage.warning('Please verify your email address')
-      return
-    }
-
     await formRef.value.validate()
     loading.value = true
 
     // In a real app, this would register the user through the API
     // For demo purposes, we'll simulate a successful registration
-    authApi.register(registerForm).then(res => {
-      ElMessage.success('Registration successful')
-      userStore.setUser(res.data)
-      router.push('/')
-    }).catch(err => {
-      ElMessage.error(userStore.error || '注册失败')
-      loading.value = false
-    })
+    const response = await authApi.register(registerForm)
 
+    if(response.data.code === 200)
+    {
+      ElMessage.success(response.data.message)
+      router.push('/')
+    }
+    else
+    {
+      ElMessage.error(response.data.message)
+      loading.value = false
+    }
   } catch (error) {
-    console.error('Validation failed:', error)
+    ElMessage.error(error.message)
     loading.value = false
   }
 }
