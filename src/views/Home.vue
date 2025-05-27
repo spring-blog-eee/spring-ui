@@ -4,8 +4,8 @@
     <section class="hero-section">
       <div class="container hero-content">
         <div class="hero-text">
-          <h1>在 <span>BlogVue</span> 分享你的故事</h1>
-          <p>一个用 Vue 构建的现代博客平台，思想在这里绽放，社区在这里繁荣。立即开始你的博客之旅。</p>
+          <h1>在 <span>SpringBlog</span><br class="mobile-break"> 分享你的故事</h1>
+          <p>eee的个人技术博客，记录编程心得、分享生活感悟。在这里，思想自由绽放，知识持续积累。</p>
           <div class="hero-buttons">
             <router-link to="/blog" class="btn-primary">
               浏览文章 <el-icon><ArrowRight /></el-icon>
@@ -158,8 +158,10 @@ onMounted(() => {
   position: relative;
 }
 
-:deep(.dark-mode) .hero-section {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a3c 100%);
+.dark-mode .hero-section {
+  background: url(../assets/title-img.png) no-repeat center/cover,
+              linear-gradient(135deg, rgba(10, 10, 10, 0.8) 0%, rgba(20, 20, 20, 0.8) 100%);
+  background-blend-mode: overlay;
 }
 
 .hero-content {
@@ -184,12 +186,24 @@ onMounted(() => {
   color: transparent;
 }
 
-:deep(.dark-mode) .hero-text h1 {
-  color: #f1f5f9;
+.dark-mode .hero-text h1 {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: var(--el-text-color-primary);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .hero-text h1 span {
   color: transparent;
+}
+
+.dark-mode .hero-text h1 span {
+  background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-shadow: none;
 }
 
 .hero-text p {
@@ -199,8 +213,8 @@ onMounted(() => {
   line-height: 1.6;
 }
 
-:deep(.dark-mode) .hero-text p {
-  color: #cbd5e1;
+.dark-mode .hero-text p {
+  color: var(--el-text-color-secondary);
 }
 
 .hero-buttons {
@@ -218,6 +232,7 @@ onMounted(() => {
   font-weight: 500;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   transition: background-color 0.3s;
 }
@@ -260,8 +275,8 @@ onMounted(() => {
   color: #1e293b;
 }
 
-:deep(.dark-mode) .section-header h2 {
-  color: #f1f5f9;
+.dark-mode .section-header h2 {
+  color: var(--el-text-color-primary);
 }
 
 .view-all {
@@ -297,8 +312,8 @@ onMounted(() => {
   background-color: #f8fafc;
 }
 
-:deep(.dark-mode) .newsletter-section {
-  background-color: #1e1e1e;
+.dark-mode .newsletter-section {
+  background-color: var(--el-fill-color);
 }
 
 .newsletter-content {
@@ -313,8 +328,8 @@ onMounted(() => {
   color: #1e293b;
 }
 
-:deep(.dark-mode) .newsletter-content h2 {
-  color: #f1f5f9;
+.dark-mode .newsletter-content h2 {
+  color: var(--el-text-color-primary);
 }
 
 .newsletter-content p {
@@ -323,8 +338,8 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 
-:deep(.dark-mode) .newsletter-content p {
-  color: #cbd5e1;
+.dark-mode .newsletter-content p {
+  color: var(--el-text-color-secondary);
 }
 
 .newsletter-form {
@@ -336,10 +351,20 @@ onMounted(() => {
   flex: 1;
 }
 
+/* 移动端换行控制 */
+.mobile-break {
+  display: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .mobile-break {
+    display: block;
+  }
+  
   .hero-text h1 {
     font-size: 2.5rem;
+    line-height: 1.2;
   }
   
   .hero-text p {
@@ -351,6 +376,12 @@ onMounted(() => {
     width: 100%;
     max-width: 300px;
     margin: 0 auto;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    text-align: center;
+    justify-content: center;
   }
   
   .newsletter-form {

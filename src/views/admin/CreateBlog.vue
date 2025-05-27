@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useThemeStore } from '../../stores/theme'
@@ -198,6 +198,15 @@ onMounted(async () => {
     ],
     after: () => {
       vditorInstance.setValue(blogForm.content)
+      // 存储 vditor 实例到 DOM 元素上，以便主题切换时使用
+      document.querySelector('#vditor-container').vditor = vditorInstance
+    }
+  })
+  
+  // 监听主题变化
+  watch(isDark, (newValue) => {
+    if (vditorInstance) {
+      vditorInstance.setTheme(newValue ? 'dark' : 'classic')
     }
   })
 })

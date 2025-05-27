@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hero背景图片测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --el-color-primary: #0288d1;
+            --el-bg-color: #ffffff;
+            --el-bg-color-page: #f2f3f5;
+            --el-text-color-primary: #303133;
+            --el-text-color-regular: #606266;
+            --el-text-color-secondary: #909399;
+            --el-border-color: #dcdfe6;
+            --el-fill-color: #f0f2f5;
+        }
+
+        .dark-mode {
+            --el-bg-color: #141414;
+            --el-bg-color-page: #0a0a0a;
+            --el-text-color-primary: #f1f5f9;
+            --el-text-color-regular: #e2e8f0;
+            --el-text-color-secondary: #cbd5e1;
+            --el-border-color: #4c4d4f;
+            --el-fill-color: #2d2d2f;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--el-bg-color-page);
+            color: var(--el-text-color-primary);
+            transition: all 0.3s ease;
+            margin: 0;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--el-color-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            z-index: 1000;
+        }
+
+        /* Hero section */
+        .hero-section {
+            padding: 8rem 0 5rem;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4eaff 100%);
+            position: relative;
+            min-height: 60vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 夜间模式下的Hero背景 */
+        .dark-mode .hero-section {
+            background: 
+                /* 创建一个渐变图案作为背景图片的替代 */
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(120, 200, 255, 0.3) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(10, 10, 10, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .hero-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .hero-text {
+            max-width: 800px;
+        }
+
+        .hero-text h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #1e293b;
+            /* 白天模式：使用原有的图片效果 */
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .hero-text h1 span {
+            color: transparent;
+        }
+
+        /* 夜间模式：纯色文字 */
+        .dark-mode .hero-text h1 {
+            background: none;
+            -webkit-background-clip: unset;
+            background-clip: unset;
+            color: var(--el-text-color-primary);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .dark-mode .hero-text h1 span {
+            background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: none;
+        }
+
+        .hero-text p {
+            font-size: 1.25rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .dark-mode .hero-text p {
+            color: var(--el-text-color-secondary);
+        }
+
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background-color: #0288d1;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #0277bd;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: #0288d1;
+            border: 1px solid #0288d1;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(2, 136, 209, 0.1);
+        }
+
+        .dark-mode .btn-secondary {
+            color: var(--el-text-color-primary);
+            border-color: var(--el-text-color-primary);
+        }
+
+        .dark-mode .btn-secondary:hover {
+            background-color: rgba(241, 245, 249, 0.1);
+        }
+
+        /* 说明区域 */
+        .explanation {
+            padding: 4rem 0;
+            background-color: var(--el-bg-color);
+        }
+
+        .explanation-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: var(--el-fill-color);
+            border-radius: 8px;
+        }
+
+        .explanation h2 {
+            color: var(--el-text-color-primary);
+            margin-bottom: 1rem;
+        }
+
+        .explanation p {
+            color: var(--el-text-color-regular);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            color: var(--el-text-color-regular);
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--el-color-primary);
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .hero-text h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero-text p {
+                font-size: 1.1rem;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-text h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 切换主题</button>
+    
+    <!-- Hero section -->
+    <section class="hero-section">
+        <div class="container hero-content">
+            <div class="hero-text">
+                <h1>在 <span>SpringBlog</span> 分享你的故事</h1>
+                <p>eee的个人技术博客，记录编程心得、分享生活感悟。在这里，思想自由绽放，知识持续积累。</p>
+                <div class="hero-buttons">
+                    <a href="#" class="btn-primary">
+                        浏览文章 →
+                    </a>
+                    <a href="#" class="btn-secondary">
+                        开始使用
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 说明区域 -->
+    <section class="explanation">
+        <div class="container">
+            <div class="explanation-content">
+                <h2>Hero背景效果说明</h2>
+                <p>这个测试页面展示了Hero部分在不同主题下的效果：</p>
+                
+                <h3 style="color: var(--el-text-color-primary); margin: 1.5rem 0 1rem;">白天模式：</h3>
+                <ul class="feature-list">
+                    <li>Hero背景使用渐变色</li>
+                    <li>标题文字使用原有的图片背景效果</li>
+                    <li>左上角SpringBlog使用蓝色到粉色渐变</li>
+                    <li>整体色调明亮清新</li>
+                </ul>
+
+                <h3 style="color: var(--el-text-color-primary); margin: 1.5rem 0 1rem;">夜间模式：</h3>
+                <ul class="feature-list">
+                    <li>Hero背景使用图片效果（这里用渐变图案模拟）</li>
+                    <li>标题文字改为纯色，带有阴影效果</li>
+                    <li>"SpringBlog"使用蓝色到粉色渐变效果</li>
+                    <li>背景有深色遮罩，确保文字可读性</li>
+                    <li>整体营造沉浸式的视觉体验</li>
+                </ul>
+
+                <p style="margin-top: 2rem; padding: 1rem; background-color: var(--el-bg-color); border-radius: 6px; border-left: 4px solid var(--el-color-primary);">
+                    <strong>注意：</strong> 在实际应用中，夜间模式的Hero背景会使用 title-img.png 图片。这里使用渐变图案来模拟效果。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark-mode');
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            document.querySelector('.theme-toggle').textContent = isDark ? '☀️ 切换主题' : '🌙 切换主题';
+        }
+    </script>
+</body>
+</html> 

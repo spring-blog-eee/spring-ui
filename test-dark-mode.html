@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜间模式测试</title>
+    <style>
+        /* 引入我们的CSS变量 */
+        :root {
+            --el-color-primary: #0288d1;
+            --el-bg-color: #ffffff;
+            --el-bg-color-page: #f2f3f5;
+            --el-text-color-primary: #303133;
+            --el-text-color-regular: #606266;
+            --el-text-color-secondary: #909399;
+            --el-border-color: #dcdfe6;
+            --el-fill-color: #f0f2f5;
+            --el-box-shadow-light: 0px 0px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .dark-mode {
+            --el-bg-color: #141414;
+            --el-bg-color-page: #0a0a0a;
+            --el-text-color-primary: #f1f5f9;
+            --el-text-color-regular: #e2e8f0;
+            --el-text-color-secondary: #cbd5e1;
+            --el-border-color: #4c4d4f;
+            --el-fill-color: #2d2d2f;
+            --el-box-shadow-light: 0px 0px 12px rgba(0, 0, 0, 0.72);
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--el-bg-color-page);
+            color: var(--el-text-color-primary);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--el-bg-color);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--el-box-shadow-light);
+        }
+
+        h1 {
+            color: var(--el-text-color-primary);
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: var(--el-text-color-regular);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .secondary-text {
+            color: var(--el-text-color-secondary);
+            font-size: 0.9rem;
+        }
+
+        .card {
+            background-color: var(--el-fill-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            border: 1px solid var(--el-border-color);
+        }
+
+        button {
+            background-color: var(--el-color-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--el-fill-color);
+            color: var(--el-text-color-primary);
+            border: 1px solid var(--el-border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 切换主题</button>
+    
+    <div class="container">
+        <h1>夜间模式测试页面</h1>
+        
+        <p>这是一个测试页面，用来验证我们的夜间模式CSS变量是否正确工作。</p>
+        
+        <div class="card">
+            <h3>卡片标题</h3>
+            <p>这是卡片内容，使用了背景填充色。</p>
+            <p class="secondary-text">这是次要文本，颜色较浅。</p>
+        </div>
+        
+        <div class="card">
+            <h3>另一个卡片</h3>
+            <p>点击右上角的按钮可以切换夜间模式。</p>
+            <button>主要按钮</button>
+            <button style="background-color: var(--el-fill-color); color: var(--el-text-color-primary); border: 1px solid var(--el-border-color);">次要按钮</button>
+        </div>
+        
+        <p class="secondary-text">
+            如果夜间模式工作正常，切换主题时所有颜色都应该平滑过渡。
+        </p>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark-mode');
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            document.querySelector('.theme-toggle').textContent = isDark ? '☀️ 切换主题' : '🌙 切换主题';
+        }
+    </script>
+</body>
+</html> 

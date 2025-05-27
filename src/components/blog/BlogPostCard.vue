@@ -71,9 +71,9 @@ const formatDate = (date) => {
   flex-direction: column;
 }
 
-:deep(.dark-mode) .blog-card {
-  background-color: #222;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
+.dark-mode .blog-card {
+  background-color: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .blog-card:hover {
@@ -135,8 +135,8 @@ const formatDate = (date) => {
   line-height: 1.4;
 }
 
-:deep(.dark-mode) .blog-title {
-  color: #f1f5f9;
+.dark-mode .blog-title {
+  color: var(--el-text-color-primary);
 }
 
 .blog-excerpt {
@@ -147,8 +147,8 @@ const formatDate = (date) => {
   flex: 1;
 }
 
-:deep(.dark-mode) .blog-excerpt {
-  color: #cbd5e1;
+.dark-mode .blog-excerpt {
+  color: var(--el-text-color-regular);
 }
 
 .blog-meta {
@@ -177,8 +177,8 @@ const formatDate = (date) => {
   color: #4b5563;
 }
 
-:deep(.dark-mode) .author-name {
-  color: #e2e8f0;
+.dark-mode .author-name {
+  color: var(--el-text-color-regular);
 }
 
 .blog-date {

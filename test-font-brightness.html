@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜间模式字体亮度测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --el-color-primary: #0288d1;
+            --el-bg-color: #ffffff;
+            --el-bg-color-page: #f2f3f5;
+            --el-text-color-primary: #303133;
+            --el-text-color-regular: #606266;
+            --el-text-color-secondary: #909399;
+            --el-border-color: #dcdfe6;
+            --el-fill-color: #f0f2f5;
+        }
+
+        /* 新的更亮的夜间模式颜色 */
+        .dark-mode {
+            --el-bg-color: #141414;
+            --el-bg-color-page: #0a0a0a;
+            --el-text-color-primary: #f1f5f9;
+            --el-text-color-regular: #e2e8f0;
+            --el-text-color-secondary: #cbd5e1;
+            --el-border-color: #4c4d4f;
+            --el-fill-color: #2d2d2f;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--el-bg-color-page);
+            color: var(--el-text-color-primary);
+            transition: all 0.3s ease;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--el-color-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            z-index: 1000;
+        }
+
+        .comparison-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .color-demo {
+            background-color: var(--el-bg-color);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--el-border-color);
+        }
+
+        .old-colors {
+            background-color: var(--el-bg-color);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--el-border-color);
+        }
+
+        /* 旧的较暗的颜色（仅用于对比） */
+        .old-colors .primary-text {
+            color: #e5eaf3;
+        }
+
+        .old-colors .regular-text {
+            color: #cfd3dc;
+        }
+
+        .old-colors .secondary-text {
+            color: #a3a6ad;
+        }
+
+        /* 新的更亮的颜色 */
+        .new-colors .primary-text {
+            color: var(--el-text-color-primary);
+        }
+
+        .new-colors .regular-text {
+            color: var(--el-text-color-regular);
+        }
+
+        .new-colors .secondary-text {
+            color: var(--el-text-color-secondary);
+        }
+
+        h1, h2, h3 {
+            color: var(--el-text-color-primary);
+            margin-bottom: 1rem;
+        }
+
+        .text-sample {
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: var(--el-fill-color);
+            border-radius: 6px;
+        }
+
+        .blog-card-demo {
+            background-color: var(--el-bg-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 1px solid var(--el-border-color);
+        }
+
+        .blog-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--el-text-color-primary);
+        }
+
+        .blog-excerpt {
+            color: var(--el-text-color-regular);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .blog-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .author-name {
+            color: var(--el-text-color-regular);
+            font-weight: 500;
+        }
+
+        .publish-date {
+            color: var(--el-text-color-secondary);
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            background-color: var(--el-fill-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .brightness-info {
+            background-color: var(--el-fill-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 切换主题</button>
+    
+    <div class="container">
+        <h1>夜间模式字体亮度优化</h1>
+        
+        <div class="brightness-info">
+            <h2>优化说明</h2>
+            <p>我们调整了夜间模式下的文字颜色，使其更亮、更易读：</p>
+            <ul style="margin: 1rem 0; padding-left: 2rem;">
+                <li><strong>主要文字：</strong> <span class="color-value">#e5eaf3</span> → <span class="color-value">#f1f5f9</span></li>
+                <li><strong>常规文字：</strong> <span class="color-value">#cfd3dc</span> → <span class="color-value">#e2e8f0</span></li>
+                <li><strong>次要文字：</strong> <span class="color-value">#a3a6ad</span> → <span class="color-value">#cbd5e1</span></li>
+            </ul>
+        </div>
+
+        <div class="comparison-section">
+            <div class="old-colors">
+                <h3>调整前（较暗）</h3>
+                <div class="text-sample">
+                    <div class="primary-text" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
+                        主要标题文字 (#e5eaf3)
+                    </div>
+                    <div class="regular-text" style="margin-bottom: 0.5rem;">
+                        这是常规正文内容，用于显示文章内容和描述信息。(#cfd3dc)
+                    </div>
+                    <div class="secondary-text">
+                        次要信息，如时间、作者等元数据。(#a3a6ad)
+                    </div>
+                </div>
+            </div>
+
+            <div class="new-colors">
+                <h3>调整后（更亮）</h3>
+                <div class="text-sample">
+                    <div class="primary-text" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
+                        主要标题文字 (#f1f5f9)
+                    </div>
+                    <div class="regular-text" style="margin-bottom: 0.5rem;">
+                        这是常规正文内容，用于显示文章内容和描述信息。(#e2e8f0)
+                    </div>
+                    <div class="secondary-text">
+                        次要信息，如时间、作者等元数据。(#cbd5e1)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>博客卡片示例</h2>
+        <div class="blog-card-demo">
+            <div class="blog-title">Vue 3 Composition API 深度解析</div>
+            <div class="blog-excerpt">
+                学习 Vue 3 Composition API 的核心概念和最佳实践，了解如何使用新的响应式系统构建更加灵活和可维护的应用程序。本文将深入探讨 ref、reactive、computed 等核心 API 的使用方法。
+            </div>
+            <div class="blog-meta">
+                <span class="author-name">张三</span>
+                <span class="publish-date">2025年1月15日</span>
+            </div>
+        </div>
+
+        <div class="blog-card-demo">
+            <div class="blog-title">现代 CSS 布局技术指南</div>
+            <div class="blog-excerpt">
+                探索 CSS Grid、Flexbox 和其他现代布局技术，学习如何创建响应式和灵活的网页布局。从基础概念到高级技巧，全面掌握现代 CSS 布局的精髓。
+            </div>
+            <div class="blog-meta">
+                <span class="author-name">李四</span>
+                <span class="publish-date">2025年1月12日</span>
+            </div>
+        </div>
+
+        <div class="brightness-info">
+            <h3>可读性改进</h3>
+            <p>通过提高夜间模式下文字的亮度，我们实现了：</p>
+            <ul style="margin: 1rem 0; padding-left: 2rem;">
+                <li>更好的文字对比度</li>
+                <li>减少眼部疲劳</li>
+                <li>提高长时间阅读的舒适度</li>
+                <li>保持良好的视觉层次</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark-mode');
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            document.querySelector('.theme-toggle').textContent = isDark ? '☀️ 切换主题' : '🌙 切换主题';
+        }
+    </script>
+</body>
+</html> 

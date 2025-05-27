@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点击事件修复测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #f5f7fa;
+            padding-top: 80px;
+        }
+
+        /* 模拟Vue Router生成的样式 */
+        .router-link-active {
+            color: #0288d1 !important;
+        }
+
+        .router-link-exact-active {
+            font-weight: 600;
+        }
+
+        /* 导航栏样式 */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .desktop-nav {
+            display: flex;
+            gap: 1.5rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            padding: 0.5rem 0;
+            position: relative;
+            transition: color 0.3s ease;
+            pointer-events: auto;
+            z-index: 1;
+            cursor: pointer;
+        }
+
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: #0288d1;
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover:after,
+        .router-link-active:after {
+            width: 100%;
+        }
+
+        .right-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            transition: background-color 0.3s;
+            position: relative;
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+
+        .auth-btn {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.3s, color 0.3s;
+            position: relative;
+            z-index: 2;
+            pointer-events: auto;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .login-btn {
+            color: #0288d1;
+        }
+
+        .login-btn:hover {
+            color: #0277bd;
+        }
+
+        .register-btn {
+            background-color: #0288d1;
+            color: white;
+        }
+
+        .register-btn:hover {
+            background-color: #0277bd;
+        }
+
+        /* 测试区域样式 */
+        .test-section {
+            padding: 2rem;
+            max-width: 800px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-result {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .click-counter {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0288d1;
+            margin: 1rem 0;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        /* 高亮点击区域 */
+        .highlight-clickable {
+            outline: 2px dashed #ff6b6b !important;
+            outline-offset: 2px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #333;
+            position: relative;
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .right-actions .auth-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 模拟导航栏 -->
+    <header class="app-header">
+        <div class="container">
+            <div class="logo">
+                <h1>SpringBlog</h1>
+            </div>
+            
+            <nav class="desktop-nav">
+                <a href="#" class="nav-link" onclick="testClick('首页', this)" data-route="/">首页</a>
+                <a href="#" class="nav-link" onclick="testClick('博客', this)" data-route="/blog">博客</a>
+                <a href="#" class="nav-link router-link-active" onclick="testClick('仪表盘', this)" data-route="/admin">仪表盘</a>
+            </nav>
+            
+            <div class="right-actions">
+                <button class="theme-toggle" onclick="testClick('主题切换', this)">🌙</button>
+                <a href="#" class="auth-btn login-btn" onclick="testClick('登录', this)" data-route="/login">登录</a>
+                <a href="#" class="auth-btn register-btn router-link-active router-link-exact-active" onclick="testClick('注册', this)" data-route="/register">注册</a>
+            </div>
+            
+            <button class="mobile-menu-btn" onclick="testClick('移动菜单', this)">☰</button>
+        </div>
+    </header>
+
+    <!-- 测试说明 -->
+    <div class="test-section">
+        <h2>🔧 点击事件修复测试</h2>
+        <p>这个页面模拟了Vue Router的行为和样式，测试导航栏各元素的点击事件是否正常工作。</p>
+        
+        <div class="click-counter">
+            总点击次数: <span id="clickCount">0</span>
+        </div>
+        
+        <div class="test-result info">
+            <strong>测试说明：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>点击导航栏的任意元素</li>
+                <li>观察控制台输出和下方的点击记录</li>
+                <li>检查是否所有元素都能正常响应点击</li>
+                <li>注意"注册"按钮有router-link-active类，模拟当前页面状态</li>
+            </ul>
+        </div>
+        
+        <button onclick="highlightClickableElements()" style="padding: 0.5rem 1rem; margin: 1rem 0; background: #0288d1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            高亮显示可点击区域
+        </button>
+        
+        <div id="clickResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🛠️ 修复内容详解</h2>
+        
+        <div class="test-result success">
+            <strong>✅ CSS层级修复：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>为所有可点击元素添加了 <code>position: relative</code> 和适当的 <code>z-index</code></li>
+                <li>确保 <code>pointer-events: auto</code> 生效</li>
+                <li>优化了容器的层级关系</li>
+            </ul>
+        </div>
+        
+        <div class="test-result success">
+            <strong>✅ Vue Router兼容性：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>保持了router-link的原有功能</li>
+                <li>添加了调试点击事件处理器</li>
+                <li>确保路由导航和点击事件都能正常工作</li>
+            </ul>
+        </div>
+        
+        <div class="debug-info">
+            <strong>CSS层级结构：</strong><br>
+            .app-header (z-index: 1000)<br>
+            └── .container (z-index: 1)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── .desktop-nav (z-index: 10)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── .nav-link (z-index: 1)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── .right-actions (z-index: 10)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── .theme-toggle (z-index: 2)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── .auth-btn (z-index: 2)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└── .mobile-menu-btn (z-index: 2)
+        </div>
+    </div>
+
+    <script>
+        let clickCount = 0;
+        let highlightMode = false;
+        
+        function testClick(elementName, element) {
+            clickCount++;
+            document.getElementById('clickCount').textContent = clickCount;
+            
+            const resultsDiv = document.getElementById('clickResults');
+            const newResult = document.createElement('div');
+            newResult.className = 'test-result success';
+            
+            const route = element.getAttribute('data-route') || '无路由';
+            const classes = element.className || '无类名';
+            
+            newResult.innerHTML = `
+                <strong>✅ 点击成功 #${clickCount}:</strong> ${elementName}<br>
+                <small>路由: ${route} | 类名: ${classes} | 时间: ${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            resultsDiv.insertBefore(newResult, resultsDiv.firstChild);
+            
+            // 控制台输出
+            console.log(`点击事件触发: ${elementName}`, {
+                element: element,
+                route: route,
+                classes: classes,
+                zIndex: window.getComputedStyle(element).zIndex,
+                pointerEvents: window.getComputedStyle(element).pointerEvents
+            });
+            
+            // 防止默认行为（避免实际跳转）
+            return false;
+        }
+        
+        function highlightClickableElements() {
+            const clickableElements = document.querySelectorAll('.nav-link, .auth-btn, .theme-toggle, .mobile-menu-btn');
+            
+            if (highlightMode) {
+                clickableElements.forEach(el => el.classList.remove('highlight-clickable'));
+                highlightMode = false;
+            } else {
+                clickableElements.forEach(el => el.classList.add('highlight-clickable'));
+                highlightMode = true;
+                
+                setTimeout(() => {
+                    clickableElements.forEach(el => el.classList.remove('highlight-clickable'));
+                    highlightMode = false;
+                }, 3000);
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，开始测试点击事件...');
+            
+            // 检查所有可点击元素的CSS属性
+            const clickableElements = document.querySelectorAll('.nav-link, .auth-btn, .theme-toggle, .mobile-menu-btn');
+            clickableElements.forEach((el, index) => {
+                const styles = window.getComputedStyle(el);
+                console.log(`元素 ${index + 1}:`, {
+                    element: el,
+                    zIndex: styles.zIndex,
+                    position: styles.position,
+                    pointerEvents: styles.pointerEvents,
+                    cursor: styles.cursor
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导航栏修复测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #f5f7fa;
+            padding-top: 80px;
+        }
+
+        /* 模拟导航栏 */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .desktop-nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(66, 133, 244, 0.1);
+            color: #4285f4;
+        }
+
+        .right-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .auth-btn {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .login-btn {
+            color: #0288d1;
+        }
+
+        .register-btn {
+            background-color: #0288d1;
+            color: white;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            padding: 1rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            flex-direction: column;
+            z-index: 999;
+        }
+
+        .mobile-nav.open {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .mobile-nav .nav-link {
+            padding: 0.75rem 1rem;
+            display: block;
+            text-align: center;
+        }
+
+        /* Hero部分 */
+        .hero-section {
+            padding: 4rem 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4eaff 100%);
+            text-align: center;
+        }
+
+        .hero-text h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #1e293b;
+        }
+
+        .hero-text h1 span {
+            background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .mobile-break {
+            display: none;
+        }
+
+        .test-section {
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .test-result {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* 移动端样式 */
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .mobile-nav {
+                display: flex;
+            }
+            
+            .right-actions .auth-btn {
+                display: none;
+            }
+
+            .mobile-break {
+                display: block;
+            }
+            
+            .hero-text h1 {
+                font-size: 2.5rem;
+                line-height: 1.2;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-nav {
+                display: none !important;
+            }
+            
+            .mobile-menu-btn {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 模拟导航栏 -->
+    <header class="app-header">
+        <div class="container">
+            <div class="logo">
+                <h1>SpringBlog</h1>
+            </div>
+            
+            <nav class="desktop-nav">
+                <a href="#" class="nav-link" onclick="testClick('首页')">首页</a>
+                <a href="#" class="nav-link" onclick="testClick('博客')">博客</a>
+                <a href="#" class="nav-link" onclick="testClick('仪表盘')">仪表盘</a>
+            </nav>
+            
+            <div class="right-actions">
+                <a href="#" class="auth-btn login-btn" onclick="testClick('登录')">登录</a>
+                <a href="#" class="auth-btn register-btn" onclick="testClick('注册')">注册</a>
+            </div>
+            
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            
+            <div class="mobile-nav" id="mobileNav">
+                <a href="#" class="nav-link" onclick="testClick('移动端-首页')">首页</a>
+                <a href="#" class="nav-link" onclick="testClick('移动端-博客')">博客</a>
+                <a href="#" class="nav-link" onclick="testClick('移动端-登录')">登录</a>
+                <a href="#" class="nav-link" onclick="testClick('移动端-注册')">注册</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero部分 -->
+    <section class="hero-section">
+        <div class="hero-text">
+            <h1>在 <span>SpringBlog</span><br class="mobile-break"> 分享你的故事</h1>
+            <p>测试移动端标题换行效果</p>
+        </div>
+    </section>
+
+    <!-- 测试说明 -->
+    <div class="test-section">
+        <h2>导航栏点击测试</h2>
+        <p>点击上方导航栏的任意链接来测试点击事件是否正常工作：</p>
+        
+        <div class="test-result info">
+            <strong>测试说明：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>桌面端：点击顶部导航链接和登录/注册按钮</li>
+                <li>移动端：点击汉堡菜单，然后点击菜单项</li>
+                <li>标题换行：在移动端查看标题是否在"SpringBlog"后换行</li>
+            </ul>
+        </div>
+        
+        <div id="clickResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>修复内容</h2>
+        <div class="test-result success">
+            <strong>✅ 导航栏点击事件修复：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>提高了导航栏的z-index优先级</li>
+                <li>优化了移动端菜单的层级关系</li>
+                <li>添加了点击外部关闭移动菜单的功能</li>
+                <li>确保桌面端和移动端的点击事件互不干扰</li>
+            </ul>
+        </div>
+        
+        <div class="test-result success">
+            <strong>✅ 移动端标题换行修复：</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>在"SpringBlog"后添加了条件换行符</li>
+                <li>只在移动端显示换行效果</li>
+                <li>桌面端保持原有的单行显示</li>
+                <li>优化了移动端的行高和字体大小</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let clickCount = 0;
+        
+        function testClick(item) {
+            clickCount++;
+            const resultsDiv = document.getElementById('clickResults');
+            const newResult = document.createElement('div');
+            newResult.className = 'test-result success';
+            newResult.innerHTML = `<strong>✅ 点击成功 #${clickCount}:</strong> ${item} - ${new Date().toLocaleTimeString()}`;
+            resultsDiv.appendChild(newResult);
+            
+            // 如果是移动端菜单项，关闭菜单
+            if (item.includes('移动端')) {
+                setTimeout(() => {
+                    document.getElementById('mobileNav').classList.remove('open');
+                }, 500);
+            }
+        }
+        
+        function toggleMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            mobileNav.classList.toggle('open');
+            testClick('移动端菜单切换');
+        }
+        
+        // 点击外部关闭移动菜单
+        document.addEventListener('click', function(event) {
+            const header = event.target.closest('.app-header');
+            const mobileNav = document.getElementById('mobileNav');
+            if (!header && mobileNav.classList.contains('open')) {
+                mobileNav.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点击事件调试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .click-test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px dashed #ccc;
+            text-align: center;
+        }
+        
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .test-button:hover {
+            background: #0056b3;
+        }
+        
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 点击事件调试工具</h1>
+        
+        <div class="debug-info">
+            <h3>调试说明</h3>
+            <p>这个页面用于测试和调试点击事件问题。请按照以下步骤操作：</p>
+            <ol>
+                <li>点击下方的测试按钮，确认基本点击事件正常工作</li>
+                <li>打开浏览器开发者工具（F12）</li>
+                <li>在控制台中运行调试命令</li>
+                <li>检查实际应用中的点击事件</li>
+            </ol>
+        </div>
+        
+        <div class="click-test">
+            <h3>基础点击测试</h3>
+            <button class="test-button" onclick="testBasicClick()">测试基础点击</button>
+            <button class="test-button" onclick="testEventPropagation()">测试事件冒泡</button>
+            <button class="test-button" onclick="testZIndex()">测试层级</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div class="debug-info">
+            <h3>调试命令</h3>
+            <p>在浏览器控制台中运行以下命令来调试导航栏点击问题：</p>
+            <pre style="background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto;">
+// 1. 检查导航栏元素
+const header = document.querySelector('.app-header');
+console.log('Header element:', header);
+
+// 2. 检查所有可点击元素
+const clickableElements = document.querySelectorAll('.nav-link, .auth-btn, .theme-toggle');
+clickableElements.forEach((el, index) => {
+    const styles = window.getComputedStyle(el);
+    console.log(`Element ${index + 1}:`, {
+        element: el,
+        zIndex: styles.zIndex,
+        position: styles.position,
+        pointerEvents: styles.pointerEvents,
+        display: styles.display
+    });
+});
+
+// 3. 检查是否有覆盖元素
+const rect = header.getBoundingClientRect();
+const elementsAtPoint = document.elementsFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
+console.log('Elements at header center:', elementsAtPoint);
+
+// 4. 添加临时点击监听器
+clickableElements.forEach(el => {
+    el.addEventListener('click', function(e) {
+        console.log('Clicked:', this, e);
+        alert('点击成功: ' + this.textContent);
+    });
+});
+            </pre>
+        </div>
+        
+        <div class="debug-info">
+            <h3>常见问题解决方案</h3>
+            <ul>
+                <li><strong>pointer-events: none</strong> - 检查元素是否被设置为不可点击</li>
+                <li><strong>z-index 层级问题</strong> - 确保可点击元素在最上层</li>
+                <li><strong>元素覆盖</strong> - 检查是否有透明元素覆盖在导航栏上</li>
+                <li><strong>Vue事件绑定</strong> - 确保@click事件正确绑定</li>
+                <li><strong>CSS选择器冲突</strong> - 检查是否有CSS规则覆盖了点击样式</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let testCount = 0;
+        
+        function addResult(message, isError = false) {
+            testCount++;
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = isError ? 'result error' : 'result';
+            resultDiv.innerHTML = `<strong>测试 ${testCount}:</strong> ${message}`;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        function testBasicClick() {
+            addResult('基础点击事件正常工作！');
+            console.log('基础点击测试通过');
+        }
+        
+        function testEventPropagation() {
+            addResult('事件冒泡测试完成');
+            console.log('事件冒泡测试');
+        }
+        
+        function testZIndex() {
+            const button = event.target;
+            const styles = window.getComputedStyle(button);
+            addResult(`按钮层级: z-index=${styles.zIndex}, position=${styles.position}`);
+            console.log('层级测试:', styles);
+        }
+        
+        // 页面加载完成后的自动检查
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== 点击事件调试工具已加载 ===');
+            console.log('请使用上方提供的调试命令来检查导航栏问题');
+            
+            // 检查当前页面是否有导航栏
+            setTimeout(() => {
+                const header = document.querySelector('.app-header');
+                if (header) {
+                    addResult('检测到导航栏元素，可以开始调试');
+                } else {
+                    addResult('未检测到导航栏元素，请确保在正确的页面', true);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 

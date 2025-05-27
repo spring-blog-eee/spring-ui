@@ -3,8 +3,8 @@
     <div class="container">
       <div class="footer-content">
         <div class="footer-logo">
-          <h2>BlogVue</h2>
-          <p>一个用 Vue 构建的现代博客平台</p>
+          <h2>SpringBlog</h2>
+          <p>eee的个人博客，分享技术与生活</p>
         </div>
         
         <div class="footer-links">
@@ -35,7 +35,7 @@
       </div>
       
       <div class="footer-bottom">
-        <p>&copy; {{ currentYear }} BlogVue. 保留所有权利。</p>
+        <p>&copy; {{ currentYear }} SpringBlog. 保留所有权利。</p>
         <div class="social-icons">
           <a href="#" aria-label="GitHub">
             <el-icon><Platform /></el-icon>
@@ -65,8 +65,8 @@ const currentYear = computed(() => new Date().getFullYear())
   margin-top: auto;
 }
 
-:deep(.dark-mode) .app-footer {
-  background-color: #121212;
+.dark-mode .app-footer {
+  background-color: var(--el-bg-color);
 }
 
 .container {
@@ -94,8 +94,8 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #666;
 }
 
-:deep(.dark-mode) .footer-logo p {
-  color: #aaa;
+.dark-mode .footer-logo p {
+  color: var(--el-text-color-secondary);
 }
 
 .footer-links {
@@ -110,8 +110,8 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #333;
 }
 
-:deep(.dark-mode) .links-group h3 {
-  color: #f5f5f5;
+.dark-mode .links-group h3 {
+  color: var(--el-text-color-primary);
 }
 
 .links-group ul {
@@ -130,8 +130,8 @@ const currentYear = computed(() => new Date().getFullYear())
   transition: color 0.3s;
 }
 
-:deep(.dark-mode) .links-group a {
-  color: #aaa;
+.dark-mode .links-group a {
+  color: var(--el-text-color-secondary);
 }
 
 .links-group a:hover {
@@ -146,8 +146,8 @@ const currentYear = computed(() => new Date().getFullYear())
   border-top: 1px solid #ddd;
 }
 
-:deep(.dark-mode) .footer-bottom {
-  border-top-color: #333;
+.dark-mode .footer-bottom {
+  border-top-color: var(--el-border-color);
 }
 
 .footer-bottom p {
@@ -156,8 +156,8 @@ const currentYear = computed(() => new Date().getFullYear())
   font-size: 0.875rem;
 }
 
-:deep(.dark-mode) .footer-bottom p {
-  color: #aaa;
+.dark-mode .footer-bottom p {
+  color: var(--el-text-color-secondary);
 }
 
 .social-icons {
@@ -171,8 +171,8 @@ const currentYear = computed(() => new Date().getFullYear())
   transition: color 0.3s;
 }
 
-:deep(.dark-mode) .social-icons a {
-  color: #aaa;
+.dark-mode .social-icons a {
+  color: var(--el-text-color-secondary);
 }
 
 .social-icons a:hover {

@@ -1,25 +1,26 @@
 <template>
-  <header class="app-header" :class="{ 'scrolled': scrolled }">
+  <header class="app-header" :class="{ 'scrolled': scrolled, 'debug-mode': debugMode }">
     <div class="container">
       <div class="logo">
         <router-link to="/">
-          <h1>BlogVue</h1>
+          <h1>SpringBlog</h1>
         </router-link>
       </div>
       
       <nav class="desktop-nav">
-        <router-link to="/" class="nav-link">首页</router-link>
-        <router-link to="/blog" class="nav-link">博客</router-link>
+        <router-link to="/" class="nav-link" @click="debugClick('首页')">首页</router-link>
+        <router-link to="/blog" class="nav-link" @click="debugClick('博客')">博客</router-link>
         
         <!-- Admin links -->
         <template v-if="userStore.isAdmin">
-          <router-link to="/admin" class="nav-link">仪表盘</router-link>
+          <router-link to="/admin" class="nav-link" @click="debugClick('仪表盘')">仪表盘</router-link>
         </template>
       </nav>
       
       <div class="right-actions">
+        
         <!-- Theme toggler -->
-        <button class="theme-toggle" @click="themeStore.toggleTheme">
+        <button class="theme-toggle" @click="handleThemeToggle">
           <el-icon v-if="themeStore.isDark"><Sunny /></el-icon>
           <el-icon v-else><Moon /></el-icon>
         </button>
@@ -45,8 +46,8 @@
         
         <!-- Auth buttons -->
         <template v-else>
-          <router-link to="/login" class="auth-btn login-btn">登录</router-link>
-          <router-link to="/register" class="auth-btn register-btn">注册</router-link>
+          <router-link to="/login" class="auth-btn login-btn" @click="debugClick('登录')">登录</router-link>
+          <router-link to="/register" class="auth-btn register-btn" @click="debugClick('注册')">注册</router-link>
         </template>
       </div>
       
@@ -95,6 +96,7 @@ const themeStore = useThemeStore()
 
 const scrolled = ref(false)
 const isMobileMenuOpen = ref(false)
+const debugMode = ref(false)
 
 const userAvatarFallback = computed(() => {
   if (!userStore.user) return ''
@@ -120,13 +122,40 @@ const handleMobileLogout = (e) => {
   isMobileMenuOpen.value = false
 }
 
+// Handle click outside to close mobile menu
+const handleClickOutside = (event) => {
+  const header = event.target.closest('.app-header')
+  if (!header && isMobileMenuOpen.value) {
+    isMobileMenuOpen.value = false
+  }
+}
+
+// Debug function to test click events
+const debugClick = (elementName) => {
+  console.log(`Clicked on: ${elementName}`)
+}
+
+// Handle theme toggle with debug
+const handleThemeToggle = () => {
+  debugClick('主题切换')
+  themeStore.toggleTheme()
+}
+
+// Toggle debug mode
+const toggleDebugMode = () => {
+  debugMode.value = !debugMode.value
+  console.log('Debug mode:', debugMode.value)
+}
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  document.addEventListener('click', handleClickOutside)
   handleScroll() // Check initial scroll position
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -136,11 +165,12 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   width: 100%;
-  z-index: 100;
+  z-index: 1000;
   padding: 1rem 0;
   transition: background-color 0.3s, box-shadow 0.3s;
   background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
+  pointer-events: auto;
 }
 
 .app-header.scrolled {
@@ -148,12 +178,14 @@ onUnmounted(() => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-:deep(.dark-mode) .app-header {
-  background-color: rgba(26, 26, 26, 0.8);
+/* 夜间模式下的导航栏样式 */
+.dark-mode .app-header {
+  background-color: rgba(20, 20, 20, 0.8);
 }
 
-:deep(.dark-mode) .app-header.scrolled {
-  background-color: rgba(26, 26, 26, 0.95);
+.dark-mode .app-header.scrolled {
+  background-color: rgba(20, 20, 20, 0.95);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .container {
@@ -163,6 +195,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
+  z-index: 1;
 }
 
 .logo a {
@@ -174,7 +208,7 @@ onUnmounted(() => {
 .logo h1 {
   margin: 0;
   font-size: 1.5rem;
-  background-image: linear-gradient(to right, #a5d46b 0%, #1e1ee9 50%, #585923 100%);
+  background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -190,6 +224,8 @@ onUnmounted(() => {
 .desktop-nav {
   display: flex;
   gap: 1.5rem;
+  position: relative;
+  z-index: 10;
 }
 
 .nav-link {
@@ -198,10 +234,13 @@ onUnmounted(() => {
   font-weight: 500;
   padding: 0.5rem 0;
   position: relative;
+  transition: color 0.3s ease;
+  pointer-events: auto;
+  z-index: 1;
 }
 
-:deep(.dark-mode) .nav-link {
-  color: #f5f5f5;
+.dark-mode .nav-link {
+  color: var(--el-text-color-primary);
 }
 
 .nav-link:after {
@@ -224,6 +263,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+  position: relative;
+  z-index: 10;
 }
 
 .theme-toggle {
@@ -238,22 +279,24 @@ onUnmounted(() => {
   justify-content: center;
   color: #333;
   transition: background-color 0.3s;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
-:deep(.dark-mode) .theme-toggle {
-  color: #f5f5f5;
+.dark-mode .theme-toggle {
+  color: var(--el-text-color-primary);
 }
 
 .theme-toggle:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-:deep(.dark-mode) .theme-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--el-fill-color-light);
 }
 
 .user-avatar {
   cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .auth-btn {
@@ -262,6 +305,14 @@ onUnmounted(() => {
   border-radius: 4px;
   font-weight: 500;
   transition: background-color 0.3s, color 0.3s;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  display: inline-block;
+  /* 确保按钮不会意外扩展 */
+  width: auto;
+  max-width: fit-content;
+  flex-shrink: 0;
 }
 
 .login-btn {
@@ -293,6 +344,15 @@ onUnmounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
+  color: #333;
+  transition: color 0.3s ease;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.dark-mode .mobile-menu-btn {
+  color: var(--el-text-color-primary);
 }
 
 .mobile-nav {
@@ -308,11 +368,11 @@ onUnmounted(() => {
   opacity: 0;
   transition: transform 0.3s, opacity 0.3s;
   flex-direction: column;
-  z-index: 99;
+  z-index: 999;
 }
 
-:deep(.dark-mode) .mobile-nav {
-  background-color: #1a1a1a;
+.dark-mode .mobile-nav {
+  background-color: var(--el-bg-color);
 }
 
 .mobile-nav.open {
@@ -326,7 +386,7 @@ onUnmounted(() => {
   text-align: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .desktop-nav {
     display: none;
   }
@@ -339,8 +399,94 @@ onUnmounted(() => {
     display: flex;
   }
   
-  .auth-btn {
+  .right-actions .auth-btn {
     display: none;
   }
+}
+
+/* 确保桌面端元素在大屏幕上正常显示 */
+@media (min-width: 481px) {
+  .desktop-nav {
+    display: flex !important;
+  }
+  
+  .desktop-nav .nav-link {
+    display: inline-block !important;
+  }
+  
+  .right-actions .auth-btn {
+    display: inline-block !important;
+  }
+}
+
+@media (min-width: 481px) {
+  .mobile-nav {
+    display: none !important;
+  }
+  
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+/* 强制确保所有可点击元素都能响应点击 */
+.nav-link {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.auth-btn {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+  /* 确保按钮不会扩展超出其内容区域 */
+  width: auto !important;
+  max-width: fit-content !important;
+}
+
+.theme-toggle,
+.mobile-menu-btn,
+.user-avatar {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+/* Element Plus 图标修复 */
+.el-icon {
+  pointer-events: none !important;
+}
+
+/* 确保下拉菜单可以点击 */
+.el-dropdown {
+  pointer-events: auto !important;
+  z-index: 10 !important;
+}
+
+.el-dropdown-menu {
+  z-index: 2000 !important;
+}
+
+/* 调试样式 - 临时添加边框来查看点击区域 */
+.debug-mode .nav-link {
+  border: 2px solid red !important;
+}
+
+.debug-mode .auth-btn {
+  border: 2px solid blue !important;
+}
+
+.debug-mode .theme-toggle {
+  border: 2px solid green !important;
+}
+
+/* 确保没有其他元素覆盖 */
+.app-header * {
+  pointer-events: auto;
+}
+
+.app-header .el-icon {
+  pointer-events: none;
 }
 </style>
