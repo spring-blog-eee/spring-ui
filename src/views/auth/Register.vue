@@ -332,6 +332,8 @@ watch(() => registerForm.email, (newValue) => {
 .verification-group {
   display: flex;
   gap: 0.75rem;
+  align-items: stretch;
+  width: 100%;
 }
 
 .verification-group .el-input {
@@ -340,7 +342,8 @@ watch(() => registerForm.email, (newValue) => {
 
 .verification-group .el-button {
   white-space: nowrap;
-  min-width: 120px;
+  min-width: 140px;
+  height: 48px;
 }
 
 .submit-button {
