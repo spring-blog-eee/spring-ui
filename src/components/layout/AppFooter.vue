@@ -27,8 +27,8 @@
           <div class="links-group">
             <h3>法律</h3>
             <ul>
-              <li><a href="#">隐私政策</a></li>
-              <li><a href="#">服务条款</a></li>
+              <li><router-link to="/privacy-policy">隐私政策</router-link></li>
+              <li><router-link to="/terms-of-service">服务条款</router-link></li>
             </ul>
           </div>
         </div>

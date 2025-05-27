@@ -17,6 +17,8 @@ const AdminComments = () => import('../views/admin/CommentsManagement.vue')
 const AdminUsers = () => import('../views/admin/UsersManagement.vue')
 const CreateBlog = () => import('../views/admin/CreateBlog.vue')
 const EditBlog = () => import('../views/admin/EditBlog.vue')
+const PrivacyPolicy = () => import('../views/PrivacyPolicy.vue')
+const TermsOfService = () => import('../views/TermsOfService.vue')
 const NotFound = () => import('../views/NotFound.vue')
 
 const routes = [
@@ -101,6 +103,18 @@ const routes = [
     component: EditBlog,
     props: true,
     meta: { title: 'Edit Blog Post', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/privacy-policy',
+    name: 'PrivacyPolicy',
+    component: PrivacyPolicy,
+    meta: { title: 'Privacy Policy' }
+  },
+  {
+    path: '/terms-of-service',
+    name: 'TermsOfService',
+    component: TermsOfService,
+    meta: { title: 'Terms of Service' }
   },
   {
     path: '/:pathMatch(.*)*',
