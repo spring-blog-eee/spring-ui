@@ -10,6 +10,8 @@
       <nav class="desktop-nav">
         <router-link to="/" class="nav-link" @click="debugClick('首页')">首页</router-link>
         <router-link to="/blog" class="nav-link" @click="debugClick('博客')">博客</router-link>
+        <router-link to="/ai" class="nav-link" @click="debugClick('AI')">知识问答</router-link>
+        <router-link to="/resource" class="nav-link" @click="debugClick('资料库')">资料库</router-link>
         
         <!-- Admin links -->
         <template v-if="userStore.isAdmin">

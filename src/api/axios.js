@@ -4,9 +4,19 @@ import router from '../router'
 import { useUserStore } from '../stores/user'
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const aiBaseURL = 'http://localhost:58070'
 
 const api = axios.create({
   baseURL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  withCredentials: true // 允许跨域请求携带凭证
+})
+
+const ai = axios.create({
+  aiBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

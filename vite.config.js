@@ -21,6 +21,13 @@ export default defineConfig({
       compiler: 'vue3',
     }),
   ],
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler' // 使用现代编译器API，避免legacy JS API警告
+      }
+    }
+  },
   server: {
     port: 3000,
     proxy: {
@@ -28,7 +35,12 @@ export default defineConfig({
         target: "http://localhost:58080",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
-        }
+        },
+      '/llm': {
+        target: "http://localhost:58070",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/llm/, '')
+      }
     }
   }
 })

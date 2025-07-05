@@ -20,6 +20,8 @@ const EditBlog = () => import('../views/admin/EditBlog.vue')
 const PrivacyPolicy = () => import('../views/PrivacyPolicy.vue')
 const TermsOfService = () => import('../views/TermsOfService.vue')
 const NotFound = () => import('../views/NotFound.vue')
+const AIChat = () => import('../views/ai/AIChat.vue')
+const Resource = () => import('../views/Resource.vue')
 
 const routes = [
   {
@@ -115,6 +117,23 @@ const routes = [
     name: 'TermsOfService',
     component: TermsOfService,
     meta: { title: 'Terms of Service' }
+  },
+  {
+    path: '/ai',
+    name: 'AIChat',
+    component: AIChat,
+    meta: { title: 'AI Chat' }
+  },
+  {
+    path: '/resource',
+    name: 'Resource',
+    component: Resource,
+    meta: { title: '资料库' }
+  },
+  {
+    path: '/knowledge-base-manager',
+    name: 'KnowledgeBaseManager',
+    component: () => import('../views/ai/KnowledgeBaseManager.vue')
   },
   {
     path: '/:pathMatch(.*)*',
