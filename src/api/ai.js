@@ -13,6 +13,10 @@ export const aiApi = {
     {
         return axios.get('/llm/model/history/' + userId)
     },
+    deleteConversation(conversationId)
+    {
+        return axios.delete('/llm/model/history-conversation/' + conversationId)
+    },
     getOneConversation(conversationId)
     {
         return axios.get('/llm/model/history-conversation/' + conversationId)
