@@ -136,6 +136,29 @@ const routes = [
     component: () => import('../views/ai/KnowledgeBaseManager.vue')
   },
   {
+    path: '/oauth2',
+    name: 'OAuth2Callback',
+    beforeEnter: (to, from, next) => {
+      // 获取URL中的token参数
+      const token = to.query.token
+      
+      if (token) {
+        // 将token存储到localStorage
+        localStorage.setItem('token', token)
+        
+        // 获取用户store实例并更新token
+        const userStore = useUserStore()
+        userStore.token = token
+        
+        // 重定向到首页
+        next({ path: '/', replace: true })
+      } else {
+        // 如果没有token参数，重定向到登录页
+        next({ name: 'Login' })
+      }
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound,

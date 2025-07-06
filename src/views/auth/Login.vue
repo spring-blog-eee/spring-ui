@@ -154,6 +154,7 @@ const handleOAuth = (provider) => {
   // In a real implementation, this would redirect to the OAuth provider
   // For demo purposes, we'll just show a message
   ElMessage.info(`${provider} 登录将重定向到认证页面`)
+  window.location.href = `http://127.0.0.1:58080/oauth2/authorization/${provider}`
 }
 </script>
 

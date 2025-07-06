@@ -2,10 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
 import { userApi } from '../api/user'
-import Cookies from 'js-cookie'
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref(Cookies.get('token') || '')
+  const token = ref(localStorage.getItem('token') || '')
   const user = ref(null)
   const loading = ref(false)
   const error = ref(null)
@@ -106,7 +105,7 @@ export const useUserStore = defineStore('user', () => {
       error.value = null
       const response = await authApi.oauthLogin(provider, code)
       token.value = response.data.token
-      Cookies.set('token', token.value, { expires: 7 })
+      localStorage.setItem('token', token.value)
       await fetchUser()
       return true
     } catch (err) {
