@@ -38,7 +38,7 @@
         <div class="knowledge-base-select">
           <div class="kb-header">
             <label for="kb-dropdown">选择知识库</label>
-            <button class="manage-kb-button" @click="goToKnowledgeBaseManager">管理知识库</button>
+            <button class="manage-kb-button" @click="goToKnowledgeBaseManager" :disabled="isFunctionDisabled">管理知识库</button>
           </div>
           <select id="kb-dropdown">
             <option>个人知识库</option>
@@ -58,7 +58,16 @@
       <div class="chat-messages" ref="messagesContainer">
         <!-- 对话消息将在这里显示 -->
         <div v-if="messages.length === 0" class="empty-state">
-          <p>👋 您好！我是您的AI助手，有什么可以帮助您的吗？</p>
+          <p v-if="userStore.isLoggedIn">👋 您好！我是您的AI助手，有什么可以帮助您的吗？</p>
+          <div v-else class="login-prompt">
+            <p>🔐 请先登录后使用AI聊天功能</p>
+            <p class="login-hint">登录后您可以：</p>
+            <ul class="feature-list">
+              <li>与AI助手进行对话</li>
+              <li>管理个人知识库</li>
+              <li>保存对话历史记录</li>
+            </ul>
+          </div>
         </div>
         
         <div v-for="(message, index) in messages" :key="index" class="message-item" :class="message.type">
@@ -95,7 +104,7 @@
             v-model="userInput"
             @keyup.enter="sendMessage"
           />
-          <button class="send-button" @click="sendMessage">
+          <button class="send-button" @click="sendMessage" :disabled="isFunctionDisabled">
             <i class="icon-send"></i>
           </button>
         </div>
@@ -115,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { aiApi } from '../../api/ai.js';
 import { useUserStore } from '../../stores/user.js';
@@ -167,6 +176,7 @@ const renderMarkdown = (content) => {
 };
 
 const goToKnowledgeBaseManager = () => {
+  if (!userStore.isLoggedIn) return;
   router.push('/knowledge-base-manager'); // 假设知识库管理页面的路由是 /knowledge-base-manager
 };
 
@@ -305,7 +315,7 @@ const scrollToBottom = async () => {
 // 获取历史会话
 const getConversationHistory = async () => {
   try {
-    const result = await aiApi.getConversationHistory(userStore.user?.id || 8);
+    const result = await aiApi.getConversationHistory(userStore.user?.id || 0);
     if (result.data && result.data.code === 200 && result.data.data && result.data.data.length > 0) {
       // 保存历史会话数据
       conversationHistory.value = result.data.data;
@@ -321,7 +331,7 @@ const getConversationHistory = async () => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!userInput.value.trim() || loading.value) return;
+  if (!userInput.value.trim() || loading.value || !userStore.isLoggedIn) return;
   
   const question = userInput.value.trim();
   userInput.value = ''; // 清空输入框
@@ -440,6 +450,9 @@ const sendMessage = async () => {
     scrollToBottom();
   }
 };
+
+// 禁用发送按钮和管理知识库按钮的计算属性
+const isFunctionDisabled = computed(() => !userStore.isLoggedIn);
 
 onMounted(async () => {
   // 获取模型列表
@@ -708,6 +721,52 @@ onMounted(async () => {
   color: #adb5bd;
   font-size: 16px;
   padding: 50px;
+}
+
+.login-prompt {
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 12px;
+  padding: 30px;
+  margin: 20px;
+  text-align: center;
+  color: #6c757d;
+}
+
+.login-prompt p {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.login-hint {
+  font-size: 14px !important;
+  color: #868e96 !important;
+  margin-bottom: 10px !important;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  display: inline-block;
+}
+
+.feature-list li {
+  padding: 5px 0;
+  font-size: 14px;
+  color: #495057;
+  position: relative;
+  padding-left: 20px;
+}
+
+.feature-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #28a745;
+  font-weight: bold;
 }
 
 .message-item {
@@ -1060,8 +1119,14 @@ onMounted(async () => {
   transition: background-color 0.3s ease;
 }
 
-.send-button:hover {
+.send-button:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.send-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .send-button .icon-send {
@@ -1103,8 +1168,16 @@ onMounted(async () => {
   transition: background-color 0.2s ease;
 }
 
-.manage-kb-button:hover {
+.manage-kb-button:hover:not(:disabled) {
   background-color: #d0e0ff;
+}
+
+.manage-kb-button:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+  border-color: #dee2e6;
 }
 
 /* 黑夜模式样式 */
@@ -1173,8 +1246,40 @@ onMounted(async () => {
     color: var(--el-color-primary);
   }
   
-  .manage-kb-button:hover {
+  .manage-kb-button:hover:not(:disabled) {
     background-color: var(--el-fill-color-dark);
+  }
+  
+  .manage-kb-button:disabled {
+    background-color: var(--el-fill-color);
+    color: var(--el-text-color-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+    border-color: var(--el-border-color-lighter);
+  }
+  
+  .send-button:disabled {
+    background-color: var(--el-text-color-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .login-prompt {
+    background-color: var(--el-fill-color);
+    border-color: var(--el-border-color);
+    color: var(--el-text-color-regular);
+  }
+  
+  .login-hint {
+    color: var(--el-text-color-secondary) !important;
+  }
+  
+  .feature-list li {
+    color: var(--el-text-color-primary);
+  }
+  
+  .feature-list li::before {
+    color: var(--el-color-success);
   }
   
   .chat-main {

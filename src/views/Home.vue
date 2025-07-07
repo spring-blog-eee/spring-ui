@@ -194,16 +194,16 @@ onMounted(() => {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.hero-text h1 span {
-  color: transparent;
-}
-
 .dark-mode .hero-text h1 span {
-  background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+  color: transparent !important;
+  background: linear-gradient(135deg, #6db33f 0%, #5cb85c 100%);
   background-clip: text;
   -webkit-background-clip: text;
-  color: transparent;
   text-shadow: none;
+}
+
+.hero-text h1 span {
+  color: transparent;
 }
 
 .hero-text p {

@@ -149,6 +149,7 @@ const routes = [
         // 获取用户store实例并更新token
         const userStore = useUserStore()
         userStore.token = token
+        userStore.fetchUser()
         
         // 重定向到首页
         next({ path: '/', replace: true })

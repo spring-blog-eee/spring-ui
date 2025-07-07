@@ -209,13 +209,16 @@ onUnmounted(() => {
 
 .logo h1 {
   margin: 0;
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, #4285f4 0%, #c084fc 100%);
+  font-size: 1.8rem;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  background: linear-gradient(135deg, #6db33f 0%, #5cb85c 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: gradient-animation 3s linear infinite;
+  letter-spacing: -0.5px;
 }
 
 @keyframes gradient-animation {

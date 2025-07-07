@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useThemeStore } from '../../stores/theme'
@@ -153,62 +153,86 @@ const handle取消 = () => {
 
 onMounted(async () => {
   // Fetch available tags
-  try {
-    const tags = await blogStore.fetchTags()
-    availableTags.value = tags
-  } catch (error) {
-    console.error('获取标签失败:', error)
-  }
+  // try {
+  //   const tags = await blogStore.fetchTags()
+  //   availableTags.value = tags
+  // } catch (error) {
+  //   console.error('获取标签失败:', error)
+  // }
 
-  // Initialize Vditor
-  vditorInstance = new Vditor('vditor-container', {
-    height: 500,
-    width: '100%',
-    mode: 'ir',
-    theme: isDark.value ? 'dark' : 'classic',
-    toolbar: [
-      'emoji',
-      'headings',
-      'bold',
-      'italic',
-      'strike',
-      'link',
-      '|',
-      'list',
-      'ordered-list',
-      'check',
-      'outdent',
-      'indent',
-      '|',
-      'quote',
-      'line',
-      'code',
-      'inline-code',
-      'insert-before',
-      'insert-after',
-      '|',
-      'upload',
-      'table',
-      '|',
-      'undo',
-      'redo',
-      '|',
-      'fullscreen',
-      'preview'
-    ],
-    after: () => {
-      vditorInstance.setValue(blogForm.content)
-      // 存储 vditor 实例到 DOM 元素上，以便主题切换时使用
-      document.querySelector('#vditor-container').vditor = vditorInstance
-    }
-  })
+  // 等待DOM完全渲染后再初始化Vditor
+  await new Promise(resolve => setTimeout(resolve, 100))
   
-  // 监听主题变化
-  watch(isDark, (newValue) => {
-    if (vditorInstance) {
-      vditorInstance.setTheme(newValue ? 'dark' : 'classic')
-    }
-  })
+  // Initialize Vditor
+  try {
+    vditorInstance = new Vditor('vditor-container', {
+      height: 500,
+      width: '100%',
+      mode: 'ir',
+      theme: isDark.value ? 'dark' : 'classic',
+      placeholder: '请输入文章内容...',
+      cache: {
+        enable: false
+      },
+      toolbar: [
+        'emoji',
+        'headings',
+        'bold',
+        'italic',
+        'strike',
+        'link',
+        '|',
+        'list',
+        'ordered-list',
+        'check',
+        'outdent',
+        'indent',
+        '|',
+        'quote',
+        'line',
+        'code',
+        'inline-code',
+        'insert-before',
+        'insert-after',
+        '|',
+        'upload',
+        'table',
+        '|',
+        'undo',
+        'redo',
+        '|',
+        'fullscreen',
+        'preview'
+      ],
+      after: () => {
+        console.log('Vditor initialized successfully')
+        vditorInstance.setValue(blogForm.content)
+        // 存储 vditor 实例到 DOM 元素上，以便主题切换时使用
+        const container = document.querySelector('#vditor-container')
+        if (container) {
+          container.vditor = vditorInstance
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Vditor initialization failed:', error)
+    ElMessage.error('编辑器初始化失败，请刷新页面重试')
+  }
+})
+
+// 监听主题变化
+watch(isDark, (newValue) => {
+  if (vditorInstance) {
+    vditorInstance.setTheme(newValue ? 'dark' : 'classic')
+  }
+})
+
+// 组件卸载时清理vditor实例
+onUnmounted(() => {
+  if (vditorInstance) {
+    vditorInstance.destroy()
+    vditorInstance = null
+  }
 })
 </script>
 
@@ -250,6 +274,8 @@ h1 {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   overflow: hidden;
+  min-height: 500px;
+  width: 100%;
 }
 
 :deep(.dark-mode) .editor-container {
@@ -257,7 +283,28 @@ h1 {
 }
 
 :deep(.vditor) {
-  border: none;
+  border: none !important;
+  width: 100% !important;
+}
+
+:deep(.vditor-content) {
+  min-height: 450px;
+}
+
+/* 确保vditor在夜间模式下正确显示 */
+:deep(.dark-mode .vditor) {
+  background-color: #1a202c;
+  color: #e2e8f0;
+}
+
+:deep(.dark-mode .vditor-toolbar) {
+  background-color: #2d3748;
+  border-bottom-color: #4a5568;
+}
+
+:deep(.dark-mode .vditor-content) {
+  background-color: #1a202c;
+  color: #e2e8f0;
 }
 </style>
 ```
