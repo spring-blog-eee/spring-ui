@@ -44,10 +44,10 @@
 
       <div class="file-list">
         <div class="file-list-header">
+          <div class="header-name"></div>
           <div class="header-name">文件</div>
           <div class="header-size">大小</div>
           <div class="header-date">上传日期</div>
-          <div class="header-uploader">上传者</div>
           <div class="header-actions">操作</div>
         </div>
         <div 
@@ -56,10 +56,9 @@
           class="file-item"
         >
           <div class="item-icon">📄</div>
-          <div class="item-name">{{ file.name }}</div>
-          <div class="item-size">{{ file.size }}</div>
-          <div class="item-date">{{ file.uploadDate }}</div>
-          <div class="item-uploader">{{ file.uploader }}</div>
+          <div class="item-name">{{ file.objectName }}</div>
+          <div class="item-size">{{ formatFileSize(file.size) }}</div>
+          <div class="item-date">{{ formatDate(file.createTime) }}</div>
           <div class="item-actions">
             <button class="action-btn download-btn" @click="downloadFile(file)">下载</button>
             <button class="action-btn view-btn" @click="viewFile(file)">预览</button>
@@ -80,7 +79,10 @@
             multiple 
             style="display: none"
           >
-          <button class="upload-btn" @click="$refs.fileInput.click()">📤 上传文件</button>
+          <button class="upload-btn" @click="$refs.fileInput.click()" :disabled="isUploading">
+            <span v-if="!isUploading">📤 上传文件</span>
+            <span v-else>⏳ 上传中... {{ uploadProgress }}%</span>
+          </button>
         </div>
         <div class="search-box">
           <input 
@@ -111,6 +113,7 @@
 
       <div class="file-list">
           <div class="file-list-header private">
+            <div class="header-name"></div>
             <div class="header-name">文件</div>
             <div class="header-size">大小</div>
             <div class="header-date">上传日期</div>
@@ -138,7 +141,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { resourceApi } from '@/api/resource'
 
 // 响应式数据
 const activeTab = ref('public')
@@ -148,34 +152,11 @@ const publicFilter = ref('all')
 const privateFilter = ref('all')
 const usedStorage = ref(2.5)
 const totalStorage = ref(10)
+const isUploading = ref(false)
+const uploadProgress = ref(0)
 
-// 模拟公共资料数据
-const publicFiles = ref([
-  {
-    id: 1,
-    name: 'Vue.js 开发指南.pdf',
-    size: '2.5MB',
-    type: 'document',
-    uploadDate: '2024-01-15',
-    uploader: '管理员'
-  },
-  {
-    id: 2,
-    name: '项目架构图.png',
-    size: '1.2MB',
-    type: 'image',
-    uploadDate: '2024-01-14',
-    uploader: '张三'
-  },
-  {
-    id: 3,
-    name: 'API 文档.docx',
-    size: '800KB',
-    type: 'document',
-    uploadDate: '2024-01-13',
-    uploader: '李四'
-  }
-])
+// 公共资料数据
+const publicFiles = ref([])
 
 // 模拟私有文件数据
 const privateFiles = ref([
@@ -202,8 +183,8 @@ const storagePercentage = computed(() => {
 
 const filteredPublicFiles = computed(() => {
   return publicFiles.value.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(publicSearchQuery.value.toLowerCase())
-    const matchesFilter = publicFilter.value === 'all' || file.type === publicFilter.value
+    const matchesSearch = file.objectName.toLowerCase().includes(publicSearchQuery.value.toLowerCase())
+    const matchesFilter = publicFilter.value === 'all' || getFileType(file.objectName) === publicFilter.value
     return matchesSearch && matchesFilter
   })
 })
@@ -216,21 +197,137 @@ const filteredPrivateFiles = computed(() => {
   })
 })
 
+// 获取公共资源数据
+const fetchPublicResources = async () => {
+  try {
+    const response = await resourceApi.getPublicResources()
+    if (response.data && response.data.code === 200) {
+      publicFiles.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取公共资源失败:', error)
+    alert('获取公共资源失败，请稍后再试')
+  }
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchPublicResources()
+})
+
 // 方法
-const handleFileUpload = (event) => {
+const handleFileUpload = async (event) => {
   const files = Array.from(event.target.files)
-  files.forEach(file => {
-    // 这里应该实现实际的文件上传逻辑
-    console.log('上传文件:', file.name)
-    // 模拟添加到私有文件列表
-    privateFiles.value.push({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
-      type: getFileType(file.name),
-      uploadDate: new Date().toISOString().split('T')[0]
+  
+  if (files.length === 0) return
+  
+  isUploading.value = true
+  uploadProgress.value = 0
+  
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      try {
+        await uploadFileToOSS(file)
+        uploadProgress.value = Math.round(((i + 1) / files.length) * 100)
+      } catch (error) {
+        console.error('上传文件失败:', file.name, error)
+        alert(`上传文件 "${file.name}" 失败，请稍后再试`)
+      }
+    }
+  } finally {
+    isUploading.value = false
+    uploadProgress.value = 0
+    // 清空文件输入框
+    event.target.value = ''
+  }
+}
+
+// OSS文件上传方法
+const uploadFileToOSS = async (file) => {
+  try {
+    // 第一步：获取OSS签名
+    const requestData = {
+      type: 0,
+      objectName: file.name,
+      bucketName: "resource-5",
+      userId: 8, // 这里应该从用户状态中获取
+      size: file.size,
+      contentType: getContentType(file.name)
+    }
+
+    const signatureResponse = await fetch("/resource/oss/add", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestData)
     })
-  })
+
+    if (!signatureResponse.ok) {
+      throw new Error("获取OSS签名失败")
+    }
+
+    const signatureData = await signatureResponse.json()
+    const ossData = signatureData.data
+
+    console.log(ossData)
+
+    const response = await fetch(ossData, 
+    {
+      method: 'PUT',
+      headers: {'Content-Type':getContentType(file.name)},
+      body: file
+    });
+
+    const data = await response.json();
+    console.log(data);
+
+    if (!response.ok)
+    {
+       throw new Error(`Upload failed, status: ${response.status}`);
+
+    }
+
+    alert('File uploaded successfully');
+    console.log('File uploaded successfully')
+      
+      // 上传成功后添加到私有文件列表
+      privateFiles.value.push({
+        id: Date.now() + Math.random(),
+        name: file.name,
+        size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
+        type: getFileType(file.name),
+        uploadDate: new Date().toISOString().split('T')[0]
+      })
+      
+      // 更新存储使用量
+      usedStorage.value += file.size / (1024 * 1024 * 1024)
+      
+      alert(`文件 "${file.name}" 上传成功！`)
+      
+      // // 解析回调信息（如果需要）
+      // const callbackData = await uploadResponse.json()
+      // console.log("上传回调信息:", callbackData)
+      
+    } catch(err) {
+      // throw new Error(`上传失败，状态码: ${uploadResponse.status}`)
+    }
 }
 
 const getFileType = (fileName) => {
@@ -241,9 +338,91 @@ const getFileType = (fileName) => {
   return 'other'
 }
 
-const downloadFile = (file) => {
-  console.log('下载文件:', file.name)
-  // 这里应该实现实际的文件下载逻辑
+// 根据文件扩展名获取ContentType
+const getContentType = (fileName) => {
+  const extension = fileName.split('.').pop().toLowerCase()
+  const contentTypeMap = {
+    // 文档类型
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'txt': 'text/plain',
+    'rtf': 'application/rtf',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    
+    // 图片类型
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'bmp': 'image/bmp',
+    'webp': 'image/webp',
+    'svg': 'image/svg+xml',
+    'ico': 'image/x-icon',
+    
+    // 视频类型
+    'mp4': 'video/mp4',
+    'avi': 'video/x-msvideo',
+    'mov': 'video/quicktime',
+    'wmv': 'video/x-ms-wmv',
+    'flv': 'video/x-flv',
+    'webm': 'video/webm',
+    'mkv': 'video/x-matroska',
+    
+    // 音频类型
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'flac': 'audio/flac',
+    'aac': 'audio/aac',
+    'ogg': 'audio/ogg',
+    
+    // 压缩文件
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed',
+    '7z': 'application/x-7z-compressed',
+    'tar': 'application/x-tar',
+    'gz': 'application/gzip',
+    
+    // 其他常见类型
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'html': 'text/html',
+    'css': 'text/css',
+    'js': 'application/javascript',
+    'csv': 'text/csv'
+  }
+  
+  return contentTypeMap[extension] || 'application/octet-stream'
+}
+
+const downloadFile = async (file) => {
+  try {
+    // 调用API获取下载URL
+    const response = await resourceApi.getDownloadUrl(file)
+    
+    if (response.data && response.data.code === 200) {
+      const downloadUrl = response.data.data
+      
+      // 创建临时链接并触发下载
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = file.objectName
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      console.log('文件下载开始:', file.objectName)
+    } else {
+      throw new Error('获取下载链接失败')
+    }
+  } catch (error) {
+    console.error('下载文件失败:', error)
+    alert(`下载文件 "${file.objectName}" 失败，请稍后再试`)
+  }
 }
 
 const viewFile = (file) => {
@@ -393,6 +572,16 @@ const shareFile = (file) => {
   background-color: #218838;
 }
 
+.upload-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.upload-btn:disabled:hover {
+  background-color: #6c757d;
+}
+
 .storage-info {
   margin-bottom: 20px;
   padding: 15px;
@@ -430,7 +619,7 @@ const shareFile = (file) => {
 
 .file-list-header {
   display: grid;
-  grid-template-columns: 40px 1fr 100px 120px 120px 160px;
+  grid-template-columns: 40px 1fr 100px 120px 160px;
   gap: 15px;
   padding: 15px 20px;
   background-color: #f8f9fa;
@@ -450,7 +639,7 @@ const shareFile = (file) => {
 
 .file-item {
   display: grid;
-  grid-template-columns: 40px 1fr 100px 120px 120px 160px;
+  grid-template-columns: 40px 1fr 100px 120px 160px;
   gap: 15px;
   padding: 15px 20px;
   border-bottom: 1px solid #f1f3f4;
@@ -568,11 +757,6 @@ const shareFile = (file) => {
   
   .file-list-header.private {
     grid-template-columns: 30px 1fr 80px 180px;
-  }
-  
-  .file-list-header .header-uploader,
-  .file-item .item-uploader {
-    display: none;
   }
   
   .file-item {
