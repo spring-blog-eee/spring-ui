@@ -47,10 +47,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/llm/, '')
       },
-      '/resource':{
+      '/resources':{
         target: "http://localhost:58012",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/resource/, '')
+        rewrite: (path) => path.replace(/^\/resources/, '')
       }
     }
   }

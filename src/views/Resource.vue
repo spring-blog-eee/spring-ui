@@ -10,6 +10,7 @@
         公共资料
       </button>
       <button 
+        v-if="userStore.isLoggedIn"
         class="tab-button" 
         :class="{ active: activeTab === 'private' }"
         @click="activeTab = 'private'"
@@ -43,32 +44,56 @@
       </div>
 
       <div class="file-list">
-        <div class="file-list-header">
-          <div class="header-name"></div>
-          <div class="header-name">文件</div>
-          <div class="header-size">大小</div>
-          <div class="header-date">上传日期</div>
-          <div class="header-actions">操作</div>
-        </div>
-        <div 
-          v-for="file in filteredPublicFiles" 
-          :key="file.id" 
-          class="file-item"
-        >
-          <div class="item-icon">📄</div>
-          <div class="item-name">{{ file.objectName }}</div>
-          <div class="item-size">{{ formatFileSize(file.size) }}</div>
-          <div class="item-date">{{ formatDate(file.createTime) }}</div>
-          <div class="item-actions">
-            <button class="action-btn download-btn" @click="downloadFile(file)">下载</button>
-            <button class="action-btn view-btn" @click="viewFile(file)">预览</button>
+        <div v-if="filteredPublicFiles.length === 0" class="empty-state">
+          <div class="empty-icon">📂</div>
+          <div class="empty-text">
+            <h3>暂无公共资源</h3>
+            <p>当前没有可用的公共资源文件</p>
           </div>
         </div>
+        <template v-else>
+          <div class="file-list-header">
+            <div class="header-name"></div>
+            <div class="header-name">文件</div>
+            <div class="header-size">大小</div>
+            <div class="header-date">上传日期</div>
+            <div class="header-actions">操作</div>
+          </div>
+          <div 
+            v-for="file in filteredPublicFiles" 
+            :key="file.id" 
+            class="file-item"
+          >
+            <div class="item-icon">
+              <el-icon :size="20">
+                <component :is="getFileIcon(file.objectName)" />
+              </el-icon>
+            </div>
+            <div class="item-name">{{ file.objectName }}</div>
+            <div class="item-size">{{ formatFileSize(file.size) }}</div>
+            <div class="item-date">{{ formatDate(file.createTime) }}</div>
+            <div class="item-actions">
+              <button class="action-btn download-btn" @click="downloadFile(file)">下载</button>
+              <button class="action-btn view-btn" @click="viewFile(file)">预览</button>
+            </div>
+          </div>
+        </template>
+      </div>
+      
+      <!-- 公共资料分页 -->
+      <div v-if="publicTotal > 0" class="pagination-container">
+        <el-pagination
+          v-model:current-page="publicCurrentPage"
+          :page-size="pageSize"
+          :total="publicTotal"
+          layout="total, prev, pager, next, jumper"
+          @current-change="handlePublicPageChange"
+        />
       </div>
     </div>
 
     <!-- 私有网盘模块 -->
-    <div v-if="activeTab === 'private'" class="content-section">
+    <div v-if="activeTab === 'private' && userStore.isLoggedIn" class="content-section">
       
       <div class="toolbar">
         <div class="upload-section">
@@ -112,6 +137,14 @@
       </div>
 
       <div class="file-list">
+        <div v-if="filteredPrivateFiles.length === 0" class="empty-state">
+          <div class="empty-icon">📁</div>
+          <div class="empty-text">
+            <h3>暂无私人资源</h3>
+            <p>您还没有上传任何私人文件，点击上方的上传按钮开始使用吧！</p>
+          </div>
+        </div>
+        <template v-else>
           <div class="file-list-header private">
             <div class="header-name"></div>
             <div class="header-name">文件</div>
@@ -124,10 +157,14 @@
             :key="file.id" 
             class="file-item private"
           >
-            <div class="item-icon">📄</div>
-            <div class="item-name">{{ file.name }}</div>
-            <div class="item-size">{{ file.size }}</div>
-            <div class="item-date">{{ file.uploadDate }}</div>
+            <div class="item-icon">
+              <el-icon :size="20">
+                <component :is="getFileIcon(file.objectName || file.name)" />
+              </el-icon>
+            </div>
+            <div class="item-name">{{ file.objectName || file.name }}</div>
+            <div class="item-size">{{ formatFileSize(file.size) }}</div>
+            <div class="item-date">{{ formatDate(file.createTime || file.uploadDate) }}</div>
             <div class="item-actions">
               <button class="action-btn download-btn" @click="downloadFile(file)">下载</button>
               <button class="action-btn view-btn" @click="viewFile(file)">预览</button>
@@ -135,14 +172,48 @@
               <button class="action-btn share-btn" @click="shareFile(file)">分享</button>
             </div>
           </div>
-        </div>
+        </template>
+      </div>
+      
+      <!-- 私有网盘分页 -->
+      <div v-if="privateTotal > 0" class="pagination-container">
+        <el-pagination
+          v-model:current-page="privateCurrentPage"
+          :page-size="pageSize"
+          :total="privateTotal"
+          layout="total, prev, pager, next, jumper"
+          @current-change="handlePrivatePageChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { ElMessage, ElMessageBox, ElPagination } from 'element-plus'
+import { 
+  Document, 
+  Picture, 
+  VideoPlay, 
+  Microphone, 
+  Box, 
+  Files, 
+  Monitor, 
+  Setting, 
+  Folder,
+  DocumentCopy,
+  DataAnalysis,
+  Document as DocumentIcon,
+  Cpu,
+  Coffee,
+  Connection
+} from '@element-plus/icons-vue'
 import { resourceApi } from '@/api/resource'
+import { useUserStore } from '@/stores/user'
+
+// 用户状态
+const userStore = useUserStore()
 
 // 响应式数据
 const activeTab = ref('public')
@@ -155,26 +226,21 @@ const totalStorage = ref(10)
 const isUploading = ref(false)
 const uploadProgress = ref(0)
 
+// 分页相关数据
+const publicCurrentPage = ref(1)
+const privateCurrentPage = ref(1)
+const pageSize = ref(10)
+const publicTotal = ref(0)
+const privateTotal = ref(0)
+
+// 存储桶名称
+const bucketName = ref('resource-5')
+
 // 公共资料数据
 const publicFiles = ref([])
 
-// 模拟私有文件数据
-const privateFiles = ref([
-  {
-    id: 1,
-    name: '个人简历.pdf',
-    size: '500KB',
-    type: 'document',
-    uploadDate: '2024-01-12'
-  },
-  {
-    id: 2,
-    name: '项目截图.jpg',
-    size: '2.1MB',
-    type: 'image',
-    uploadDate: '2024-01-11'
-  }
-])
+// 私有文件数据
+const privateFiles = ref([])
 
 // 计算属性
 const storagePercentage = computed(() => {
@@ -191,22 +257,98 @@ const filteredPublicFiles = computed(() => {
 
 const filteredPrivateFiles = computed(() => {
   return privateFiles.value.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(privateSearchQuery.value.toLowerCase())
-    const matchesFilter = privateFilter.value === 'all' || file.type === privateFilter.value
+    const fileName = file.objectName || file.name || ''
+    const matchesSearch = fileName.toLowerCase().includes(privateSearchQuery.value.toLowerCase())
+    const fileType = getFileType(fileName)
+    const matchesFilter = privateFilter.value === 'all' || fileType === privateFilter.value
     return matchesSearch && matchesFilter
   })
 })
 
-// 获取公共资源数据
-const fetchPublicResources = async () => {
+// 获取公共资源计数
+const fetchPublicCount = async () => {
   try {
-    const response = await resourceApi.getPublicResources()
+    const response = await resourceApi.getPublicCount()
+    if (response.data && response.data.code === 200) {
+      publicTotal.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取公共资源计数失败:', error)
+  }
+}
+
+// 获取公共资源数据
+const fetchPublicResources = async (pageIndex = 1) => {
+  try {
+    const params = {
+      pageIndex: pageIndex,
+      pageSize: pageSize.value
+    }
+    const response = await resourceApi.getPublicResources(params)
     if (response.data && response.data.code === 200) {
       publicFiles.value = response.data.data
     }
   } catch (error) {
     console.error('获取公共资源失败:', error)
-    alert('获取公共资源失败，请稍后再试')
+    ElMessage.error('获取公共资源失败，请稍后再试')
+  }
+}
+
+// 获取私人资源计数
+const fetchPrivateCount = async () => {
+  if (!userStore.isLoggedIn) return
+  
+  try {
+    const params = {
+      userId: userStore.user?.id
+    }
+    const response = await resourceApi.getPrivateCount(params)
+    if (response.data && response.data.code === 200) {
+      privateTotal.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取私人资源计数失败:', error)
+  }
+}
+
+// 获取存储使用量
+const fetchStorageUsage = async () => {
+  if (!userStore.isLoggedIn) return
+  
+  try {
+    const params = {
+      userId: userStore.user?.id,
+      bucketName: bucketName.value
+    }
+    const response = await resourceApi.getPrivateUsage(params)
+    if (response.data && response.data.code === 200) {
+      // 后端返回Long类型的字节数，转换为GB
+      const usageInBytes = response.data.data
+      usedStorage.value = (usageInBytes / (1024 * 1024 * 1024)).toFixed(2)
+    }
+  } catch (error) {
+    console.error('获取存储使用量失败:', error)
+  }
+}
+
+// 获取私人资源数据
+const fetchPrivateResources = async (pageIndex = 1) => {
+  if (!userStore.isLoggedIn) return
+  
+  try {
+    const params = {
+      userId: userStore.user?.id,
+      pageIndex: pageIndex,
+      pageSize: pageSize.value
+    }
+    const response = await resourceApi.getPrivateResource(params)
+    if (response.data && response.data.code === 200) {
+      const privateData = response.data.data
+      privateFiles.value = privateData
+    }
+  } catch (error) {
+    console.error('获取私人资源失败:', error)
+    ElMessage.error('获取私人资源失败，请稍后再试')
   }
 }
 
@@ -225,9 +367,47 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('zh-CN')
 }
 
+// 监听用户登录状态变化
+watch(() => userStore.isLoggedIn, (newValue) => {
+  // 如果用户登出且当前在私有网盘页面，自动切换到公共资料
+  if (!newValue && activeTab.value === 'private') {
+    activeTab.value = 'public'
+  }
+})
+
+// 分页事件处理
+const handlePublicPageChange = (page) => {
+  publicCurrentPage.value = page
+  fetchPublicResources(page)
+}
+
+const handlePrivatePageChange = (page) => {
+  privateCurrentPage.value = page
+  fetchPrivateResources(page)
+}
+
+// 监听标签页切换
+watch(activeTab, async (newTab) => {
+  if (newTab === 'public') {
+    await fetchPublicCount()
+    await fetchPublicResources(publicCurrentPage.value)
+  } else if (newTab === 'private' && userStore.isLoggedIn) {
+    await fetchPrivateCount()
+    await fetchPrivateResources(privateCurrentPage.value)
+    await fetchStorageUsage()
+  }
+})
+
 // 组件挂载时获取数据
-onMounted(() => {
-  fetchPublicResources()
+onMounted(async () => {
+  if (activeTab.value === 'public') {
+    await fetchPublicCount()
+    await fetchPublicResources(publicCurrentPage.value)
+  } else if (activeTab.value === 'private' && userStore.isLoggedIn) {
+    await fetchPrivateCount()
+    await fetchPrivateResources(privateCurrentPage.value)
+    await fetchStorageUsage()
+  }
 })
 
 // 方法
@@ -235,6 +415,14 @@ const handleFileUpload = async (event) => {
   const files = Array.from(event.target.files)
   
   if (files.length === 0) return
+  
+  // 检查用户是否登录
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再上传文件')
+    return
+  }
+  
+  ElMessage.info(`开始上传 ${files.length} 个文件...`)
   
   isUploading.value = true
   uploadProgress.value = 0
@@ -247,7 +435,7 @@ const handleFileUpload = async (event) => {
         uploadProgress.value = Math.round(((i + 1) / files.length) * 100)
       } catch (error) {
         console.error('上传文件失败:', file.name, error)
-        alert(`上传文件 "${file.name}" 失败，请稍后再试`)
+        ElMessage.error(`上传文件 "${file.name}" 失败，请稍后再试`)
       }
     }
   } finally {
@@ -255,6 +443,10 @@ const handleFileUpload = async (event) => {
     uploadProgress.value = 0
     // 清空文件输入框
     event.target.value = ''
+    
+    if (files.length > 1) {
+      ElMessage.success('所有文件上传完成！')
+    }
   }
 }
 
@@ -266,26 +458,19 @@ const uploadFileToOSS = async (file) => {
       type: 0,
       objectName: file.name,
       bucketName: "resource-5",
-      userId: 8, // 这里应该从用户状态中获取
+      userId: userStore.user?.id || null, // 从用户状态中获取
       size: file.size,
       contentType: getContentType(file.name)
     }
 
-    const signatureResponse = await fetch("/resource/oss/add", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(requestData)
-    })
-
-    if (!signatureResponse.ok) {
+    const signatureResponse = await resourceApi.getOssSignature(requestData)
+    
+    if (!signatureResponse.data || signatureResponse.data.code !== 200) {
       throw new Error("获取OSS签名失败")
     }
 
-    const signatureData = await signatureResponse.json()
+    const signatureData = signatureResponse.data
     const ossData = signatureData.data
-
     console.log(ossData)
 
     const response = await fetch(ossData, 
@@ -295,38 +480,26 @@ const uploadFileToOSS = async (file) => {
       body: file
     });
 
-    const data = await response.json();
-    console.log(data);
+    console.log(response.ok)
 
     if (!response.ok)
     {
        throw new Error(`Upload failed, status: ${response.status}`);
-
     }
-
-    alert('File uploaded successfully');
-    console.log('File uploaded successfully')
+      // 上传成功后重新获取私人资源列表和计数
+      await fetchPrivateCount()
+      await fetchPrivateResources(privateCurrentPage.value)
+      await fetchStorageUsage()
       
-      // 上传成功后添加到私有文件列表
-      privateFiles.value.push({
-        id: Date.now() + Math.random(),
-        name: file.name,
-        size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
-        type: getFileType(file.name),
-        uploadDate: new Date().toISOString().split('T')[0]
-      })
-      
-      // 更新存储使用量
-      usedStorage.value += file.size / (1024 * 1024 * 1024)
-      
-      alert(`文件 "${file.name}" 上传成功！`)
+      ElMessage.success(`文件 "${file.name}" 上传成功！`)
       
       // // 解析回调信息（如果需要）
       // const callbackData = await uploadResponse.json()
       // console.log("上传回调信息:", callbackData)
       
-    } catch(err) {
-      // throw new Error(`上传失败，状态码: ${uploadResponse.status}`)
+    } catch(err) 
+    {
+      ElMessage.error(`上传文件 "${file.name}" 失败，请稍后再试`)
     }
 }
 
@@ -336,6 +509,47 @@ const getFileType = (fileName) => {
   if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) return 'image'
   if (['mp4', 'avi', 'mov'].includes(extension)) return 'video'
   return 'other'
+}
+
+// 根据文件扩展名获取对应的Element Plus图标组件
+const getFileIcon = (fileName) => {
+  if (!fileName) return Document
+  
+  const extension = fileName.split('.').pop().toLowerCase()
+  
+  // 文档类型
+  if (['pdf', 'doc', 'docx', 'txt', 'md', 'rtf'].includes(extension)) return Document
+  if (['xls', 'xlsx'].includes(extension)) return DataAnalysis
+   // PPT类型
+   if (['ppt', 'pptx'].includes(extension)) return DocumentIcon
+  
+  // 图片类型
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico'].includes(extension)) return Picture
+  
+  // 视频类型
+  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(extension)) return VideoPlay
+  
+  // 音频类型
+  if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(extension)) return Microphone
+  
+  // 压缩文件
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) return Box
+  
+  // 代码文件
+  if (['js', 'ts', 'jsx', 'tsx', 'json', 'xml'].includes(extension)) return Files
+  if (['html', 'htm'].includes(extension)) return Monitor
+  if (['css', 'scss', 'sass', 'less'].includes(extension)) return Setting
+  if (['py', 'php', 'sql'].includes(extension)) return DocumentCopy
+  if (['java'].includes(extension)) return Coffee
+  if (['cpp', 'c', 'h'].includes(extension)) return Cpu
+  
+  // 其他常见类型
+  if (['exe', 'msi'].includes(extension)) return Setting
+  if (['iso', 'dmg'].includes(extension)) return Box
+  if (['font', 'ttf', 'otf', 'woff'].includes(extension)) return Files
+  
+  // 默认文件图标
+  return Document
 }
 
 // 根据文件扩展名获取ContentType
@@ -415,34 +629,85 @@ const downloadFile = async (file) => {
       link.click()
       document.body.removeChild(link)
       
+      ElMessage.success(`文件 "${file.objectName}" 开始下载`)
       console.log('文件下载开始:', file.objectName)
     } else {
       throw new Error('获取下载链接失败')
     }
   } catch (error) {
     console.error('下载文件失败:', error)
-    alert(`下载文件 "${file.objectName}" 失败，请稍后再试`)
+    ElMessage.error(`下载文件 "${file.objectName}" 失败，请稍后再试`)
   }
 }
 
 const viewFile = (file) => {
-  console.log('预览文件:', file.name)
+  console.log('预览文件:', file.objectName || file.name)
+  ElMessage.info('文件预览功能正在开发中，敬请期待！')
   // 这里应该实现文件预览逻辑
 }
 
-const deleteFile = (file) => {
-  if (confirm(`确定要删除文件 "${file.name}" 吗？`)) {
-    const index = privateFiles.value.findIndex(f => f.id === file.id)
-    if (index > -1) {
-      privateFiles.value.splice(index, 1)
+const deleteFile = async (file) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除文件 "${file.objectName || file.name}" 吗？此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    
+    // 调用删除API
+    const fileWithBucket = {
+      ...file,
+      bucketName: bucketName.value
+    }
+    const response = await resourceApi.deleteResource(fileWithBucket)
+    
+    if (response.data && response.data.code === 200) {
+      // 删除成功后重新获取私人资源列表和计数
+      await fetchPrivateCount()
+      await fetchPrivateResources(privateCurrentPage.value)
+      await fetchStorageUsage()
+      
+      ElMessage.success(`文件 "${file.objectName || file.name}" 删除成功！`)
+    } else {
+      throw new Error('删除文件失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除文件失败:', error)
+      ElMessage.error('删除文件失败，请稍后再试')
     }
   }
 }
 
-const shareFile = (file) => {
-  console.log('分享文件:', file.name)
-  // 这里应该实现文件分享逻辑
-  alert(`文件 "${file.name}" 的分享链接已生成！`)
+const shareFile = async (file) => {
+  try {
+    console.log('分享文件:', file.objectName || file.name)
+    
+    // 调用API获取分享URL（使用现有的getDownloadUrl方法）
+    const response = await resourceApi.getDownloadUrl(file)
+    
+    if (response.data && response.data.code === 200) {
+      const shareUrl = response.data.data
+      
+      // 复制到剪贴板
+      await navigator.clipboard.writeText(shareUrl)
+      
+      ElMessage.success({
+        message: `文件 "${file.objectName || file.name}" 的分享链接已复制到剪贴板！`,
+        duration: 3000
+      })
+    } else {
+      throw new Error('获取分享链接失败')
+    }
+  } catch (error) {
+    console.error('生成分享链接失败:', error)
+    ElMessage.error('生成分享链接失败，请稍后再试')
+  }
 }
 </script>
 
@@ -732,6 +997,43 @@ const shareFile = (file) => {
 
 .share-btn:hover {
   background-color: #218838;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-text h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+}
+
+.empty-text p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #999;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 20px 0;
 }
 
 @media (max-width: 768px) {
