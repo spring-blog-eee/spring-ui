@@ -50,11 +50,7 @@
 
     <!-- 主对话区域 -->
     <main class="chat-main">
-      <div class="chat-header">
-        <div class="chat-title">知识库小助手</div>
-        <div class="chat-actions">
-        </div>
-      </div>
+
       <div class="chat-messages" ref="messagesContainer">
         <!-- 对话消息将在这里显示 -->
         <div v-if="messages.length === 0" class="empty-state">
@@ -124,15 +120,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { aiApi } from '../../api/ai.js';
 import { useUserStore } from '../../stores/user.js';
 import MarkdownIt from 'markdown-it';
 import Prism from 'prismjs';
-import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/themes/prism-solarizedlight.css';
 import markdownItPrism from 'markdown-it-prism';
-import { ChatDotRound, Delete, Search, Tools } from '@element-plus/icons-vue';
+import { ChatDotRound, Delete, Search, Tools, CopyDocument, Check, Close } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 
 // 导入常用语言支持
@@ -164,15 +160,77 @@ const isToolCallEnabled = ref(false);
 
 // 初始化markdown渲染器
 const md = new MarkdownIt({
-  html: true,
+  html: false,
   linkify: true,
   typographer: true
 }).use(markdownItPrism, {plugins:[]});
 
+// 复制代码到剪贴板
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success('代码已复制到剪贴板');
+  } catch (err) {
+    console.error('复制失败:', err);
+    ElMessage.error('复制失败');
+  }
+};
+
+// 处理代码块，添加语言标签和复制按钮
+const enhanceCodeBlocks = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const codeBlocks = doc.querySelectorAll('pre code');
+  
+  codeBlocks.forEach((codeElement, index) => {
+    const preElement = codeElement.parentElement;
+    if (!preElement) return;
+    
+    // 获取语言类型
+    const className = codeElement.className || '';
+    const languageMatch = className.match(/language-(\w+)/);
+    const language = languageMatch ? languageMatch[1] : 'text';
+    const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
+    
+    // 创建代码块容器
+    const codeContainer = doc.createElement('div');
+    codeContainer.className = 'code-block-container';
+    
+    // 创建头部工具栏
+    const toolbar = doc.createElement('div');
+    toolbar.className = 'code-toolbar';
+    
+    // 语言标签
+    const languageLabel = doc.createElement('span');
+    languageLabel.className = 'language-label';
+    languageLabel.textContent = displayLanguage;
+    
+    // 复制按钮
+    const copyButton = doc.createElement('button');
+    copyButton.className = 'copy-button';
+    copyButton.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制';
+    copyButton.setAttribute('data-code', codeElement.textContent || '');
+    copyButton.setAttribute('onclick', `copyCode(this)`);
+    
+    toolbar.appendChild(languageLabel);
+    toolbar.appendChild(copyButton);
+    
+    // 重新构建结构 
+    preElement.parentNode.insertBefore(codeContainer, preElement);
+    codeContainer.appendChild(toolbar);
+    codeContainer.appendChild(preElement);
+  });
+  
+  return doc.body.innerHTML;
+};
+
+
+
 // 渲染markdown内容
 const renderMarkdown = (content) => {
   if (!content) return '';
-  return md.render(content);
+  const html = md.render(content);
+  return enhanceCodeBlocks(html);
 };
 
 const goToKnowledgeBaseManager = () => {
@@ -294,14 +352,6 @@ const deleteConversation = async (conversation) => {
       ElMessage.error('删除失败，请稍后重试');
     }
   }
-};
-
-// 格式化时间
-const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 };
 
 // 滚动到底部
@@ -455,6 +505,25 @@ const sendMessage = async () => {
 const isFunctionDisabled = computed(() => !userStore.isLoggedIn);
 
 onMounted(async () => {
+  // 设置全局复制函数
+  window.copyCode = function(button) {
+    const code = button.getAttribute('data-code');
+    if (code) {
+      navigator.clipboard.writeText(code).then(() => {
+        button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2l-87 114.8c-9.4 12.4-24.6 19.9-40.8 19.9H296c-35.3 0-64 28.7-64 64v448c0 35.3 28.7 64 64 64h616c35.3 0 64-28.7 64-64V254c0-35.3-28.7-64-64-64z" fill="#52c41a"></path></svg> 已复制';
+        setTimeout(() => {
+          button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制';
+        }, 2000);
+      }).catch(err => {
+        console.error('复制失败:', err);
+        button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M685.4 354.8c0-4.4-3.6-8-8-8l-66 .3L512 465.6l-99.3-118.4-66.1-.3c-4.4 0-8 3.5-8 8 0 1.9.7 3.7 1.9 5.2l130.1 155L340.5 670a8.32 8.32 0 0 0 6.4 13.6l66.1-.3L512 564.4l99.3 118.9 66.1.3c4.4 0 8-3.5 8-8 0-1.9-.7-3.7-1.9-5.2L553.5 515l130.1-155c1.2-1.4 1.8-3.3 1.8-5.2z" fill="#ff4d4f"></path></svg> 失败';
+        setTimeout(() => {
+          button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制';
+        }, 2000);
+      });
+    }
+  };
+  
   // 获取模型列表
   let result = await aiApi.getModels();
   result = result.data
@@ -475,25 +544,12 @@ onMounted(async () => {
   await getConversationHistory();
 });
 
-// 这里可以添加组件的逻辑，例如：
-// - 处理新建对话的点击事件
-// - 管理对话列表的状态
-// - 处理模型和知识库的选择
-// - 发送和接收消息的逻辑
-// - 滚动到底部等
-
-// 示例：导入一些图标（假设您有Element Plus或其他图标库）
-// import { Sunny, Moon } from '@element-plus/icons-vue'
-
-// 响应式数据示例
-// import { ref } from 'vue';
-// const currentModel = ref('GPT-4 (OpenAI)');
-// const currentKnowledgeBase = ref('个人知识库');
-// const messages = ref([]);
-
-// 方法示例
-// const startNewChat = () => { /* ... */ };
-// const sendMessage = () => { /* ... */ };
+// 组件卸载时清理全局函数
+onUnmounted(() => {
+  if (window.copyCode) {
+    delete window.copyCode;
+  }
+});
 </script>
 
 <style scoped>
@@ -663,29 +719,11 @@ onMounted(async () => {
   flex-direction: column;
   background-color: #ffffff;
   position: relative;
+  height: 100%;
+  min-height: 0;
 }
 
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
-}
 
-.chat-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #343a40;
-}
-
-.chat-actions i {
-  margin-left: 15px;
-  font-size: 20px;
-  cursor: pointer;
-  color: #6c757d;
-}
 
 .chat-messages {
   flex-grow: 1;
@@ -780,7 +818,9 @@ onMounted(async () => {
 }
 
 .message-item.assistant {
-  align-items: flex-start;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
 }
 
 .message-item.error {
@@ -794,17 +834,26 @@ onMounted(async () => {
   position: relative;
 }
 
+.message-item.assistant .message-content {
+  width: 90%;
+  max-width: 1000px;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 20px 0;
+  text-align: left;
+  font-size: 20px;
+  line-height: 1.6;
+  margin: 0 auto;
+}
+
 .message-item.user .message-content {
   background-color: #007bff;
   color: white;
   border-bottom-right-radius: 4px;
 }
 
-.message-item.assistant .message-content {
-  background-color: #f1f3f4;
-  color: #333;
-  border-bottom-left-radius: 4px;
-}
+
 
 .message-item.error .message-content {
   background-color: #fee;
@@ -814,7 +863,7 @@ onMounted(async () => {
 }
 
 .message-text {
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1.5;
   word-wrap: break-word;
 }
@@ -846,28 +895,6 @@ onMounted(async () => {
 
 .markdown-content p {
   margin: 8px 0;
-}
-
-.markdown-content code {
-  background-color: rgba(175, 184, 193, 0.2);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.9em;
-}
-
-.markdown-content pre {
-  background-color: #f6f8fa;
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
-  margin: 12px 0;
-}
-
-.markdown-content pre code {
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
 }
 
 .markdown-content ul,
@@ -1018,22 +1045,25 @@ onMounted(async () => {
 }
 
 .chat-input-area {
-  padding: 15px 20px;
+  padding: 8px 20px;
   border-top: 1px solid #e0e0e0;
   background-color: #f8f9fa;
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
 }
 
 .input-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .function-buttons {
   display: flex;
   gap: 8px;
   justify-content: flex-start;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .function-btn {
@@ -1146,6 +1176,105 @@ onMounted(async () => {
 }
 .icon-send::before {
   content: '➤';
+}
+</style>
+
+<style>
+/* 代码块增强样式 - 全局样式，确保动态生成的内容能应用 */
+.markdown-content .code-block-container {
+  position: relative;
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  background: #f8f9fa;
+}
+
+.markdown-content .code-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f1f3f4;
+  border-bottom: 1px solid #e1e5e9;
+  font-size: 12px;
+}
+
+.markdown-content .language-label {
+  font-weight: 600;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.markdown-content .copy-button {
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.markdown-content .copy-button .copy-icon {
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+.markdown-content .copy-button:hover {
+  background: #f8f9fa;
+  border-color: #5f6368;
+  color: #202124;
+}
+
+.markdown-content .code-block-container pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  background: #fff;
+}
+
+.markdown-content .code-block-container pre code {
+  display: block;
+  padding: 16px;
+  background: transparent;
+  border-radius: 0;
+}
+
+/* 夜间模式下的代码块样式 */
+.dark-mode .markdown-content .code-block-container {
+  border-color: #30363d;
+  background: #0d1117;
+}
+
+.dark-mode .markdown-content .code-toolbar {
+  background: #161b22;
+  border-bottom-color: #30363d;
+}
+
+.dark-mode .markdown-content .language-label {
+  color: #8b949e;
+}
+
+.dark-mode .markdown-content .copy-button {
+  background: #21262d;
+  border-color: #30363d;
+  color: #8b949e;
+}
+
+.dark-mode .markdown-content .copy-button:hover {
+  background: #30363d;
+  border-color: #8b949e;
+  color: #f0f6fc;
+}
+
+.dark-mode .markdown-content .code-block-container pre {
+  background: #0d1117;
 }
 </style>
 
@@ -1286,22 +1415,7 @@ onMounted(async () => {
     background-color: var(--el-bg-color);
   }
   
-  .chat-header {
-    background-color: var(--el-fill-color-light);
-    border-bottom-color: var(--el-border-color);
-  }
-  
-  .chat-title {
-    color: var(--el-text-color-primary);
-  }
-  
-  .chat-actions i {
-    color: var(--el-text-color-secondary);
-  }
-  
-  .chat-actions i:hover {
-    color: var(--el-text-color-primary);
-  }
+
   
   .empty-state {
     color: var(--el-text-color-placeholder);
@@ -1340,7 +1454,7 @@ onMounted(async () => {
   }
   
   .message-item.assistant .message-content {
-    background-color: var(--el-fill-color-darker);
+    background-color: transparent;
     color: var(--el-text-color-primary);
   }
   
@@ -1380,25 +1494,6 @@ onMounted(async () => {
     background: var(--el-text-color-disabled);
   }
 }
-
-/* Prism.js 代码高亮样式优化 */
-  .markdown-content pre[class*="language-"] {
-    margin: 16px 0;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow-x: auto;
-    padding: 16px;
-    background: #2d3748 !important;
-  }
-  
-  .markdown-content code[class*="language-"],
-  .markdown-content pre[class*="language-"] {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #e2e8f0;
-  }
-  
   .markdown-content code {
     background: #f7fafc;
     padding: 2px 6px;
@@ -1408,12 +1503,10 @@ onMounted(async () => {
   }
   
   /* 夜间模式下的代码样式 */
-  .dark .markdown-content code {
+  .dark-mode .markdown-content code {
     background: #2d3748;
     color: #68d391;
   }
-  
-  .dark .markdown-content pre[class*="language-"] {
-    background: #1a202c !important;
-  }
+
+
 </style>
