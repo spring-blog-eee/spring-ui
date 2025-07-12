@@ -1,52 +1,20 @@
-import api from './axios'
+import axios from "axios"
+
+const prefix = '/blogs'
 
 export const blogApi = {
+  // Get upload URLs for blog creation
+  getUploadUrls(params)
+  {
+    return axios.post(prefix + '/blog/add', params)
+  },
   // Get all blogs
-  getBlogs(params) {
-    return api.get('/blogs', { params })
+  getBlogList(params)
+  {
+    return axios.post(prefix + '/blog/list', params)
   },
-  
-  // Get blog by ID
-  getBlogById(id) {
-    return api.get(`/blogs/${id}`)
+  getBlogDetail(params)
+  {
+    return axios.post(prefix + '/blog/get', params)
   },
-  
-  // Create a blog (admin)
-  createBlog(blogData) {
-    return api.post('/admin/blogs', blogData)
-  },
-  
-  // Update a blog (admin)
-  updateBlog(id, blogData) {
-    return api.put(`/admin/blogs/${id}`, blogData)
-  },
-  
-  // Delete a blog (admin)
-  deleteBlog(id) {
-    return api.delete(`/admin/blogs/${id}`)
-  },
-  
-  // Like a blog
-  likeBlog(id) {
-    return api.post(`/blogs/${id}/like`)
-  },
-  
-  // Get tags
-  getTags() {
-    return api.get('/blogs/tags')
-  },
-  
-  // Get featured blogs
-  getFeaturedBlogs() {
-    return api.get('/blogs/featured')
-  },
-  
-  // Upload image for blog
-  uploadImage(formData) {
-    return api.post('/blogs/upload-image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-  }
 }

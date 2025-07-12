@@ -51,6 +51,11 @@ export default defineConfig({
         target: "http://localhost:58012",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/resources/, '')
+      },
+      '/blogs':{
+        target: "http://localhost:58050",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/blogs/, '')
       }
     }
   }

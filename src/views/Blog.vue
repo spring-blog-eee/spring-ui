@@ -81,7 +81,7 @@ const fetchBlogs = async () => {
   loading.value = true
   try {
     await blogStore.fetchBlogs({
-      page: currentPage.value,
+      pageIndex: currentPage.value,
       limit: pageSize.value,
       search: searchQuery.value,
       tag: selectedTag.value

@@ -24,14 +24,7 @@
              <el-icon><Search /></el-icon>
            </button>
         </div>
-        <div class="filter-options">
-          <select v-model="filterType" class="filter-select">
-            <option value="all">全部类型</option>
-            <option value="file">文件类型</option>
-            <option value="url">网址类型</option>
-            <option value="resource">资料库类型</option>
-          </select>
-        </div>
+
       </div>
 
       <div class="kb-grid">
@@ -41,10 +34,6 @@
           class="kb-card"
         >
           <div class="kb-card-header">
-            <div class="kb-type-badge" :class="`type-${kb.type}`">
-               <el-icon><component :is="getTypeIcon(kb.type)" /></el-icon>
-               {{ getTypeName(kb.type) }}
-             </div>
             <div class="kb-actions">
               <button class="action-btn edit-btn" @click="editKnowledgeBase(kb)">
                  <el-icon><Edit /></el-icon>
@@ -55,11 +44,11 @@
             </div>
           </div>
           <div class="kb-card-body">
-            <h3 class="kb-name">{{ kb.name }}</h3>
+            <h3 class="kb-title">{{ kb.title }}</h3>
+            <p class="kb-collection-name">集合名称: {{ kb.collectionName }}</p>
             <p class="kb-description">{{ kb.description || '暂无描述' }}</p>
             <div class="kb-meta">
-              <span class="kb-size">{{ kb.size }} 条目</span>
-              <span class="kb-updated">{{ formatDate(kb.updatedAt) }}</span>
+              <span class="kb-created">{{ formatDate(kb.creationTime) }}</span>
             </div>
           </div>
         </div>
@@ -88,12 +77,22 @@
           <div class="form-section">
             <h3>基本信息</h3>
             <div class="form-group">
-              <label for="kb-name">知识库名称</label>
+              <label for="kb-title">知识库标题</label>
               <input 
-                id="kb-name"
+                id="kb-title"
                 type="text" 
-                v-model="currentKB.name" 
-                placeholder="请输入知识库名称"
+                v-model="currentKB.title" 
+                placeholder="请输入知识库标题"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="kb-collection-name">集合名称</label>
+              <input 
+                id="kb-collection-name"
+                type="text" 
+                v-model="currentKB.collectionName" 
+                placeholder="请输入集合名称"
                 class="form-input"
               />
             </div>
@@ -114,131 +113,88 @@
             <h3>数据源</h3>
             <div class="source-tabs">
               <button 
-                   v-for="source in dataSources" 
-                   :key="source.type"
-                   class="source-tab"
-                   :class="{ active: currentKB.sourceType === source.type }"
-                   @click="currentKB.sourceType = source.type"
-                 >
-                   <el-icon><component :is="source.icon" /></el-icon>
-                   {{ source.name }}
-                 </button>
+                class="source-tab" 
+                :class="{ active: currentKB.sourceType === 'file' }"
+                @click="currentKB.sourceType = 'file'"
+              >
+                <el-icon><Document /></el-icon>
+                文件上传
+              </button>
+              <button 
+                class="source-tab" 
+                :class="{ active: currentKB.sourceType === 'url' }"
+                @click="currentKB.sourceType = 'url'"
+              >
+                <el-icon><Link /></el-icon>
+                网址链接
+              </button>
             </div>
 
-            <!-- 文件上传 -->
-            <div v-if="currentKB.sourceType === 'file'" class="source-content">
-              <div class="upload-area" @drop="handleFileDrop" @dragover.prevent @dragenter.prevent>
-                <input 
-                  type="file" 
-                  ref="fileInput"
-                  multiple
-                  accept=".txt,.pdf,.doc,.docx,.md"
-                  @change="handleFileSelect"
-                  style="display: none;"
-                />
-                <div class="upload-placeholder">
-                   <el-icon class="upload-icon"><Upload /></el-icon>
-                   <p>拖拽文件到此处或 <button @click="$refs.fileInput.click()" class="upload-link">点击选择文件</button></p>
-                   <p class="upload-hint">支持 TXT、PDF、DOC、DOCX、MD 格式</p>
-                 </div>
-                <div v-if="currentKB.files.length > 0" class="file-list">
+            <div class="source-content">
+              <!-- 文件上传 -->
+              <div v-if="currentKB.sourceType === 'file'">
+                <div 
+                  class="upload-area"
+                  @drop="handleFileDrop"
+                  @dragover.prevent
+                  @dragenter.prevent
+                >
+                  <div class="upload-placeholder">
+                    <el-icon class="upload-icon"><Upload /></el-icon>
+                    <p>拖拽文件到此处，或 <button class="upload-link" @click="$refs.fileInput.click()">点击选择文件</button></p>
+                    <p class="upload-hint">支持 PDF、Word、TXT、Markdown 等格式</p>
+                  </div>
+                  <input 
+                    ref="fileInput" 
+                    type="file" 
+                    multiple 
+                    accept=".pdf,.doc,.docx,.txt,.md" 
+                    @change="handleFileSelect" 
+                    style="display: none;"
+                  />
+                </div>
+                
+                <div v-if="currentKB.files && currentKB.files.length > 0" class="file-list">
                   <div v-for="(file, index) in currentKB.files" :key="index" class="file-item">
-                     <el-icon><Document /></el-icon>
-                     <span class="file-name">{{ file.name }}</span>
-                     <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                     <button class="remove-file-btn" @click="removeFile(index)">
-                       <el-icon><Close /></el-icon>
-                     </button>
-                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 网址链接 -->
-            <div v-if="currentKB.sourceType === 'url'" class="source-content">
-              <div class="url-input-section">
-                <div class="form-group">
-                  <label for="url-input">网址链接</label>
-                  <div class="url-input-group">
-                    <input 
-                      id="url-input"
-                      type="url" 
-                      v-model="newUrl" 
-                      placeholder="请输入网址链接，如：https://example.com"
-                      class="form-input"
-                      @keyup.enter="addUrl"
-                    />
-                    <button class="add-url-btn" @click="addUrl">
-                       <el-icon><Plus /></el-icon>
-                       添加
-                     </button>
+                    <el-icon><Document /></el-icon>
+                    <span class="file-name">{{ file.name }}</span>
+                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    <button class="remove-file-btn" @click="removeFile(index)">
+                      <el-icon><Delete /></el-icon>
+                    </button>
                   </div>
                 </div>
-                <div v-if="currentKB.urls.length > 0" class="url-list">
+              </div>
+
+              <!-- 网址链接 -->
+              <div v-if="currentKB.sourceType === 'url'">
+                <div class="url-input-group">
+                  <input 
+                    type="url" 
+                    v-model="newUrl" 
+                    placeholder="请输入网址链接"
+                    class="form-input"
+                    @keyup.enter="addUrl"
+                  />
+                  <button class="add-url-btn" @click="addUrl" :disabled="!isValidUrl(newUrl)">
+                    <el-icon><Plus /></el-icon>
+                    添加
+                  </button>
+                </div>
+                
+                <div v-if="currentKB.urls && currentKB.urls.length > 0" class="url-list">
                   <div v-for="(url, index) in currentKB.urls" :key="index" class="url-item">
-                     <el-icon><Link /></el-icon>
-                     <span class="url-text">{{ url }}</span>
-                     <button class="remove-url-btn" @click="removeUrl(index)">
-                       <el-icon><Close /></el-icon>
-                     </button>
-                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 资料库选择 -->
-            <div v-if="currentKB.sourceType === 'resource'" class="source-content">
-              <div class="resource-selection">
-                <div class="form-group">
-                  <label>选择资料库类型</label>
-                  <div class="resource-type-options">
-                    <label class="radio-option">
-                      <input type="radio" v-model="currentKB.resourceType" value="public" />
-                      <span>公共资料</span>
-                    </label>
-                    <label class="radio-option">
-                      <input type="radio" v-model="currentKB.resourceType" value="private" />
-                      <span>私有网盘</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="resource-list">
-                  <div class="resource-search">
-                    <input 
-                      type="text" 
-                      placeholder="搜索资料..."
-                      v-model="resourceSearchQuery"
-                      class="form-input"
-                    />
-                  </div>
-                  <div class="resource-items">
-                    <div 
-                      v-for="resource in filteredResources" 
-                      :key="resource.id"
-                      class="resource-item"
-                      :class="{ selected: isResourceSelected(resource.id) }"
-                      @click="toggleResourceSelection(resource.id)"
-                    >
-                      <div class="resource-checkbox">
-                        <input 
-                          type="checkbox" 
-                          :checked="isResourceSelected(resource.id)"
-                          @change="toggleResourceSelection(resource.id)"
-                        />
-                      </div>
-                      <div class="resource-info">
-                         <el-icon><component :is="getResourceIcon(resource.type)" /></el-icon>
-                         <div class="resource-details">
-                           <span class="resource-name">{{ resource.name }}</span>
-                           <span class="resource-meta">{{ resource.size }} • {{ resource.date }}</span>
-                         </div>
-                       </div>
-                    </div>
+                    <el-icon><Link /></el-icon>
+                    <span class="url-text">{{ url }}</span>
+                    <button class="remove-url-btn" @click="removeUrl(index)">
+                      <el-icon><Delete /></el-icon>
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
         </div>
 
         <div class="dialog-footer">
@@ -264,73 +220,33 @@ import {
   FolderOpened,
   Document,
   Link,
-  Folder,
-  Upload,
-  Picture,
-  MoreFilled
+  Upload
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
 // 响应式数据
 const searchQuery = ref('')
-const filterType = ref('all')
 const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 const newUrl = ref('')
-const resourceSearchQuery = ref('')
 
 // 知识库数据
-const knowledgeBases = ref([
-  {
-    id: 1,
-    name: '技术文档库',
-    description: '包含各种技术文档和API参考',
-    type: 'file',
-    size: 156,
-    updatedAt: new Date('2024-01-15'),
-    files: [],
-    urls: [],
-    resources: []
-  },
-  {
-    id: 2,
-    name: '官方网站内容',
-    description: '从官方网站抓取的内容',
-    type: 'url',
-    size: 89,
-    updatedAt: new Date('2024-01-10'),
-    files: [],
-    urls: ['https://example.com'],
-    resources: []
-  }
-])
+const knowledgeBases = ref([])
 
 // 当前编辑的知识库
 const currentKB = ref({
   id: null,
-  name: '',
+  title: '',
+  collectionName: '',
   description: '',
+  userId: null,
   sourceType: 'file',
-  resourceType: 'public',
   files: [],
-  urls: [],
-  resources: []
+  urls: []
 })
 
-// 数据源类型
- const dataSources = [
-   { type: 'file', name: '文件上传', icon: Upload },
-   { type: 'url', name: '网址链接', icon: Link },
-   { type: 'resource', name: '资料库', icon: Folder }
- ]
 
-// 模拟资料库数据
-const mockResources = ref([
-  { id: 1, name: '个人简历.pdf', type: 'pdf', size: '500KB', date: '2024-01-12' },
-  { id: 2, name: '项目截图.jpg', type: 'image', size: '2.1MB', date: '2024-01-11' },
-  { id: 3, name: '技术文档.md', type: 'markdown', size: '156KB', date: '2024-01-10' }
-])
 
 // 计算属性
 const isEditing = computed(() => showEditDialog.value)
@@ -340,64 +256,25 @@ const filteredKnowledgeBases = computed(() => {
   
   if (searchQuery.value) {
     filtered = filtered.filter(kb => 
-      kb.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      kb.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       (kb.description && kb.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
     )
-  }
-  
-  if (filterType.value !== 'all') {
-    filtered = filtered.filter(kb => kb.type === filterType.value)
   }
   
   return filtered
 })
 
-const filteredResources = computed(() => {
-  if (!resourceSearchQuery.value) return mockResources.value
-  
-  return mockResources.value.filter(resource => 
-    resource.name.toLowerCase().includes(resourceSearchQuery.value.toLowerCase())
-  )
-})
+
 
 const canSave = computed(() => {
-  if (!currentKB.value.name.trim()) return false
-  
-  if (currentKB.value.sourceType === 'file' && currentKB.value.files.length === 0) return false
-  if (currentKB.value.sourceType === 'url' && currentKB.value.urls.length === 0) return false
-  if (currentKB.value.sourceType === 'resource' && currentKB.value.resources.length === 0) return false
-  
-  return true
+  const hasBasicInfo = currentKB.value.title.trim() && currentKB.value.collectionName.trim()
+  const hasDataSource = 
+    (currentKB.value.sourceType === 'file' && currentKB.value.files.length > 0) ||
+    (currentKB.value.sourceType === 'url' && currentKB.value.urls.length > 0)
+  return hasBasicInfo && hasDataSource
 })
 
 // 方法
- const getTypeIcon = (type) => {
-   const icons = {
-     file: Document,
-     url: Link,
-     resource: Folder
-   }
-   return icons[type] || Document
- }
-
-const getTypeName = (type) => {
-  const names = {
-    file: '文件',
-    url: '网址',
-    resource: '资料库'
-  }
-  return names[type] || '未知'
-}
-
-const getResourceIcon = (type) => {
-   const icons = {
-     pdf: Document,
-     image: Picture,
-     markdown: Document,
-     doc: Document
-   }
-   return icons[type] || Document
- }
 
 const formatDate = (date) => {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -415,15 +292,70 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
+const handleFileSelect = (event) => {
+  const files = Array.from(event.target.files)
+  currentKB.value.files = [...currentKB.value.files, ...files]
+}
+
+const handleFileDrop = (event) => {
+  event.preventDefault()
+  const files = Array.from(event.dataTransfer.files)
+  currentKB.value.files = [...currentKB.value.files, ...files]
+}
+
+const removeFile = (index) => {
+  currentKB.value.files.splice(index, 1)
+}
+
+const addUrl = () => {
+  if (isValidUrl(newUrl.value)) {
+    currentKB.value.urls.push(newUrl.value)
+    newUrl.value = ''
+  }
+}
+
+const removeUrl = (index) => {
+  currentKB.value.urls.splice(index, 1)
+}
+
+const isValidUrl = (url) => {
+  if (!url) return false
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+
+
 const editKnowledgeBase = (kb) => {
   currentKB.value = { ...kb }
   showEditDialog.value = true
 }
 
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { aiApi } from '../../api/ai.js'
+
 const deleteKnowledgeBase = (id) => {
-  if (confirm('确定要删除这个知识库吗？')) {
-    knowledgeBases.value = knowledgeBases.value.filter(kb => kb.id !== id)
-  }
+  ElMessageBox.confirm('确定要删除这个知识库吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  .then(async () => {
+    try {
+      await deleteKnowledge({ id });
+      ElMessage.success('删除成功');
+      fetchKnowledgeBases(); // 重新获取列表
+    } catch (error) {
+      ElMessage.error('删除失败：' + error.message);
+    }
+  })
+  .catch(() => {
+    ElMessage.info('已取消删除');
+  });
 }
 
 const closeDialog = () => {
@@ -435,98 +367,62 @@ const closeDialog = () => {
 const resetCurrentKB = () => {
   currentKB.value = {
     id: null,
-    name: '',
+    title: '',
+    collectionName: '',
     description: '',
+    userId: null,
     sourceType: 'file',
-    resourceType: 'public',
     files: [],
-    urls: [],
-    resources: []
+    urls: []
   }
+  newUrl.value = ''
 }
 
-const handleFileSelect = (event) => {
-  const files = Array.from(event.target.files)
-  currentKB.value.files.push(...files)
-}
 
-const handleFileDrop = (event) => {
-  event.preventDefault()
-  const files = Array.from(event.dataTransfer.files)
-  currentKB.value.files.push(...files)
-}
 
-const removeFile = (index) => {
-  currentKB.value.files.splice(index, 1)
-}
-
-const addUrl = () => {
-  if (newUrl.value.trim() && isValidUrl(newUrl.value)) {
-    currentKB.value.urls.push(newUrl.value.trim())
-    newUrl.value = ''
-  }
-}
-
-const removeUrl = (index) => {
-  currentKB.value.urls.splice(index, 1)
-}
-
-const isValidUrl = (string) => {
-  try {
-    new URL(string)
-    return true
-  } catch (_) {
-    return false
-  }
-}
-
-const isResourceSelected = (resourceId) => {
-  return currentKB.value.resources.includes(resourceId)
-}
-
-const toggleResourceSelection = (resourceId) => {
-  const index = currentKB.value.resources.indexOf(resourceId)
-  if (index > -1) {
-    currentKB.value.resources.splice(index, 1)
-  } else {
-    currentKB.value.resources.push(resourceId)
-  }
-}
-
-const saveKnowledgeBase = () => {
+const saveKnowledgeBase = async () => {
   if (!canSave.value) return
   
   const kbData = {
     ...currentKB.value,
-    updatedAt: new Date(),
-    size: calculateKBSize()
+    userId: getCurrentUserId() // 获取当前用户ID
   }
   
-  if (isEditing.value) {
-    const index = knowledgeBases.value.findIndex(kb => kb.id === currentKB.value.id)
-    if (index > -1) {
-      knowledgeBases.value[index] = kbData
+  try {
+    if (isEditing.value) {
+      await updateKnowledge(kbData);
+      ElMessage.success('知识库更新成功！');
+    } else {
+      await createKnowledge(kbData);
+      ElMessage.success('知识库创建成功！');
     }
-  } else {
-    kbData.id = Date.now()
-    kbData.type = currentKB.value.sourceType
-    knowledgeBases.value.push(kbData)
+    closeDialog();
+    fetchKnowledgeBases(); // 重新获取列表
+  } catch (error) {
+    ElMessage.error((isEditing.value ? '更新失败：' : '创建失败：') + error.message);
   }
-  
-  closeDialog()
 }
 
-const calculateKBSize = () => {
-  // 简单的大小计算逻辑
-  let size = 0
-  size += currentKB.value.files.length * 10
-  size += currentKB.value.urls.length * 5
-  size += currentKB.value.resources.length * 8
-  return size
+// 获取当前用户ID的辅助函数
+const getCurrentUserId = () => {
+  // 这里应该从用户状态管理或本地存储中获取用户ID
+  // 示例：从localStorage获取
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  return userInfo.id || null
 }
+
+// 获取知识库列表
+const fetchKnowledgeBases = async () => {
+  try {
+    const response = await getKnowledgeList();
+    knowledgeBases.value = response.data;
+  } catch (error) {
+    ElMessage.error('获取知识库列表失败：' + error.message);
+  }
+};
 
 onMounted(() => {
-  // 组件挂载时的初始化逻辑
+  fetchKnowledgeBases();
 })
 </script>
 
@@ -710,10 +606,17 @@ onMounted(() => {
   padding: 15px;
 }
 
-.kb-name {
+.kb-title {
   margin: 0 0 8px 0;
   font-size: 18px;
   color: #333;
+}
+
+.kb-collection-name {
+  margin: 0 0 8px 0;
+  color: #007bff;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .kb-description {
@@ -731,15 +634,18 @@ onMounted(() => {
 }
 
 .empty-state {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 60px 20px;
   color: #999;
 }
 
-.empty-state i {
+.empty-state .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
-  display: block;
+  color: #ccc;
 }
 
 .empty-state h3 {
@@ -883,7 +789,7 @@ onMounted(() => {
   border-color: #007bff;
 }
 
-.upload-placeholder i {
+.upload-placeholder .upload-icon {
   font-size: 48px;
   color: #ccc;
   margin-bottom: 15px;

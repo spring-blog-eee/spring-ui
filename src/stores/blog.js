@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { blogApi } from '../api/blog'
+import MarkdownIt from 'markdown-it'
 
 export const useBlogStore = defineStore('blog', () => {
   const blogs = ref([])
@@ -19,19 +20,47 @@ export const useBlogStore = defineStore('blog', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await blogApi.getBlogs({
-        page: pagination.value.page,
-        limit: pagination.value.limit,
+      const response = await blogApi.getBlogList({
+        pageIndex: params.pageIndex || params.page || pagination.value.page || 1,
         ...params
       })
-      blogs.value = response.data.blogs
-      pagination.value = {
-        page: response.data.page,
-        limit: response.data.limit,
-        total: response.data.total
+      
+      // 处理响应数据结构
+      if (response.data && response.data.code === 200) {
+        const blogData = response.data.data || []
+        
+        // 处理博客数据，解析tags字段并转换为组件期望的格式
+        blogs.value = blogData.map(blog => ({
+          ...blog,
+          id: blog.id,
+          title: blog.title,
+          cover: blog.imgUrl || '/default-cover.jpg',
+          excerpt: blog.excerpt || '暂无摘要...',
+          tags: JSON.parse(blog.tags),
+          author: {
+            name: blog.nickname || '匿名用户',
+            avatar: blog.authorAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          publishedAt: blog.creationTime,
+          createdAt: blog.creationTime,
+          // 保留原始数据
+        }))
+
+        console.log(blogs.value)
+        
+        // 更新分页信息（这里假设后端会返回总数，如果没有则使用当前数据长度）
+         pagination.value = {
+           page: params.pageIndex || params.page || pagination.value.page || 1,
+           limit: params.limit || pagination.value.limit || 10,
+           total: response.data.total || blogData.length // 优先使用后端返回的总数
+         }
+      } else {
+        blogs.value = []
+        throw new Error(response.data?.message || 'Failed to fetch blogs')
       }
     } catch (err) {
       error.value = err.message || 'Failed to fetch blogs'
+      blogs.value = []
     } finally {
       loading.value = false
     }
@@ -41,13 +70,98 @@ export const useBlogStore = defineStore('blog', () => {
   async function fetchBlogById(id) {
     try {
       loading.value = true
-      error.value = null
-      const response = await blogApi.getBlogById(id)
-      currentBlog.value = response.data
-      return response.data
+      
+      // 确保ID是数字类型
+      const blogId = parseInt(id)
+      console.log('Fetching blog with ID:', blogId)
+      
+      // 调用 getBlogDetail API 获取博客详情
+      const response = await blogApi.getBlogDetail({ id: blogId })
+      console.log('API response:', response)
+      
+      if (response.data && response.data.code === 200) {
+        const blogData = response.data.data
+        console.log('Blog data:', blogData)
+        
+        // 解析标签
+        let parsedTags = []
+        try {
+          parsedTags = JSON.parse(blogData.tags || '[]')
+        } catch (e) {
+          console.log('Failed to parse tags:', e)
+          parsedTags = []
+        }
+        
+        // 拉取 markdown 文件内容
+        const markdownResponse = await fetch(blogData.contentUrl)
+        const markdownContent = await markdownResponse.text()
+        
+        // 使用 markdown-it 渲染 markdown 内容
+        const md = new MarkdownIt({  
+          html: false,
+          linkify: true,
+          typographer: true
+        })
+        const renderedContent = md.render(markdownContent)
+        
+        // 构建完整的博客对象
+        currentBlog.value = {
+          id: blogData.id,
+          title: blogData.title,
+          content: renderedContent,
+          cover: blogData.imgUrl || '/default-cover.jpg',
+          tags: parsedTags,
+          author: {
+            name: blogData.nickname || '匿名用户',
+            avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          publishedAt: blogData.creationTime || new Date().toISOString(),
+          createdAt: blogData.creationTime || new Date().toISOString(),
+          likes: 0,
+          liked: false
+        }
+        
+        console.log('Current blog set:', currentBlog.value)
+        return currentBlog.value
+      } else {
+        console.log('API response error (ignored):', response.data)
+        // 设置默认博客内容而不抛出错误
+        currentBlog.value = {
+          id: blogId,
+          title: '博客标题',
+          content: '<p>内容加载中...</p>',
+          cover: '/default-cover.jpg',
+          tags: [],
+          author: {
+            name: '匿名用户',
+            avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          publishedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          likes: 0,
+          liked: false
+        }
+        return currentBlog.value
+      }
     } catch (err) {
-      error.value = err.message || 'Failed to fetch blog'
-      throw error.value
+      console.log('Error in fetchBlogById (ignored):', err)
+      // 设置默认博客内容而不抛出错误
+      currentBlog.value = {
+        id: parseInt(id),
+        title: '博客标题',
+        content: '<p>内容加载中...</p>',
+        cover: '/default-cover.jpg',
+        tags: [],
+        author: {
+          name: '匿名用户',
+          avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+        },
+        publishedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        liked: false
+      }
+      return currentBlog.value
     } finally {
       loading.value = false
     }
@@ -148,21 +262,6 @@ export const useBlogStore = defineStore('blog', () => {
     }
   }
 
-  // Get all tags
-  async function fetchTags() {
-    try {
-      loading.value = true
-      error.value = null
-      const response = await blogApi.getTags()
-      tags.value = response.data
-      return response.data
-    } catch (err) {
-      error.value = err.message || 'Failed to fetch tags'
-      throw error.value
-    } finally {
-      loading.value = false
-    }
-  }
 
   // Get featured blogs
   async function fetchFeaturedBlogs() {
@@ -192,7 +291,6 @@ export const useBlogStore = defineStore('blog', () => {
     updateBlog,
     deleteBlog,
     likeBlog,
-    fetchTags,
     fetchFeaturedBlogs
   }
 })

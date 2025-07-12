@@ -20,5 +20,24 @@ export const aiApi = {
     getOneConversation(conversationId)
     {
         return axios.get('/llm/model/history-conversation/' + conversationId)
-    }
+    },
+
+
+    createKnowledge(params)
+    {
+        return axios.post('/llm/rag/create', params)
+    },
+    getKnowledgeList(params)
+    {
+        return axios.post('/llm/rag/list', params)
+    },
+    deleteKnowledge(params)
+    {
+        return axios.post('/llm/rag/delete', params)
+    },
+    updateKnowledge(params)
+    {
+        return axios.post('/llm/rag/update', params)
+    },
+
 }

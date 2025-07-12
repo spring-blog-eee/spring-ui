@@ -80,15 +80,18 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useThemeStore } from '../../stores/theme'
 import { useBlogStore } from '../../stores/blog'
+import { useUserStore } from '../../stores/user'
+import { blogApi } from '../../api/blog'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 
 const router = useRouter()
 const themeStore = useThemeStore()
 const blogStore = useBlogStore()
+const userStore = useUserStore()
 const formRef = ref(null)
 const loading = ref(false)
 let vditorInstance = null
@@ -109,6 +112,27 @@ const tagInput = ref('')
 const coverPreview = ref('')
 const coverFile = ref(null)
 
+// 自定义验证器：检查Vditor内容
+const validateContent = (rule, value, callback) => {
+  if (!vditorInstance) {
+    callback(new Error('编辑器未初始化'))
+    return
+  }
+  
+  const content = vditorInstance.getValue()
+  if (!content || content.trim() === '') {
+    callback(new Error('请填写内容'))
+    return
+  }
+  
+  if (content.length < 100) {
+    callback(new Error('内容至少需要 100 个字符'))
+    return
+  }
+  
+  callback()
+}
+
 // Form validation rules
 const rules = {
   title: [
@@ -123,8 +147,7 @@ const rules = {
     { type: 'array', min: 1, message: '请至少添加一个标签', trigger: 'change' }
   ],
   content: [
-    { required: true, message: '请填写内容', trigger: 'blur' },
-    { min: 100, message: '内容至少需要 100 个字符', trigger: 'blur' }
+    { validator: validateContent, trigger: 'blur' }
   ]
 }
 
@@ -165,22 +188,78 @@ const removeCover = () => {
   blogForm.cover = ''
 }
 
-const uploadCoverImage = async () => {
-  if (!coverFile.value) return ''
-  
-  const formData = new FormData()
-  formData.append('file', coverFile.value)
+// 根据文件扩展名获取Content-Type
+const getImageContentType = (filename) => {
+  const extension = filename.split('.').pop().toLowerCase()
+  switch (extension) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg"
+    case "png":
+      return "image/png"
+    case "gif":
+      return "image/gif"
+    case "webp":
+      return "image/webp"
+    case "bmp":
+      return "image/bmp"
+    case "svg":
+      return "image/svg+xml"
+    case "ico":
+      return "image/x-icon"
+    default:
+      return "application/octet-stream"
+  }
+}
+
+const uploadCoverImage = async (imgUrl) => {
+  if (!coverFile.value || !imgUrl) return ''
   
   try {
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
+    const contentType = getImageContentType(coverFile.value.name)
+    console.log("Content-Type:", contentType)
+    const response = await fetch(imgUrl, {
+      method: 'PUT',
+      body: coverFile.value,
+      headers: {
+        'Content-Type': contentType
+      }
     })
-    const result = await response.json()
-    return result.url
+    
+    if (!response.ok) {
+      throw new Error('图片上传失败')
+    }
+    
+    // 返回不带查询参数的URL
+    return imgUrl.split('?')[0]
   } catch (error) {
     console.error('封面上传失败:', error)
     throw new Error('封面图片上传失败')
+  }
+}
+
+const uploadMarkdownContent = async (mdUrl, content) => {
+  if (!mdUrl || !content) return ''
+  
+  try {
+    const response = await fetch(mdUrl, 
+    {
+      method: 'PUT',
+      body: content,
+      headers: {
+        'Content-Type': 'text/plain'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('内容上传失败')
+    }
+    
+    // 返回不带查询参数的URL
+    return mdUrl.split('?')[0]
+  } catch (error) {
+    console.error('内容上传失败:', error)
+    throw new Error('Markdown内容上传失败')
   }
 }
 
@@ -188,23 +267,84 @@ const handleSubmit = async () => {
   if (!formRef.value) return
   
   try {
+    // 先验证表单
     await formRef.value.validate()
+    
+    // 显示确认弹窗
+    await ElMessageBox.confirm(
+      '确定要发布这篇文章吗？发布后将公开显示。',
+      '确认发布',
+      {
+        confirmButtonText: '确定发布',
+        cancelButtonText: '取消',
+        type: 'info',
+        center: true
+      }
+    )
+    
     loading.value = true
     
-    // 如果有封面图片需要上传，先上传封面
-    if (blogForm.cover === 'pending' && coverFile.value) {
-      ElMessage.info('正在上传封面图片...')
-      blogForm.cover = await uploadCoverImage()
+    // 获取内容
+    const content = vditorInstance.getValue()
+    
+    // 准备请求参数
+    const requestParams = {
+      imgName: coverFile.value ? coverFile.value.name : 'default.jpg',
+      title: blogForm.title,
+      userId: userStore.user?.id || userStore.userId,
+      tags: JSON.stringify(blogForm.tags)
     }
     
-    blogForm.content = vditorInstance.getValue()
-    const response = await blogStore.createBlog(blogForm)
-    ElMessage.success('博客文章发布成功')
-    router.push(`/blog/${response.id}`)
-  } catch (error) {
-    if (error.message) {
-      ElMessage.error(error.message)
+    ElMessage.info('正在获取上传地址...')
+    
+    // 调用API获取上传URL
+    let urlResponse = await blogApi.getUploadUrls(requestParams)
+    urlResponse = urlResponse.data
+    console.log(urlResponse)
+    
+    if (urlResponse.code !== 200 || !urlResponse.data || urlResponse.data.length < 2) {
+      throw new Error('获取上传地址失败')
     }
+    
+    const [mdUrl, imgUrl] = urlResponse.data
+    
+    // 上传Markdown内容
+    ElMessage.info('正在上传文章内容...')
+    const contentUrl = await uploadMarkdownContent(mdUrl, content)
+    
+    // 上传封面图片（如果有）
+    let coverUrl = ''
+    if (blogForm.cover === 'pending' && coverFile.value) {
+      ElMessage.info('正在上传封面图片...')
+      coverUrl = await uploadCoverImage(imgUrl)
+    }
+    
+    // 更新表单数据
+    blogForm.content = contentUrl
+    blogForm.cover = coverUrl
+    
+    // 创建博客记录（如果需要的话，这里可能需要调用另一个API来保存博客信息）
+    ElMessage.success('博客文章发布成功')
+    
+    // 重置表单
+    blogForm.title = ''
+    blogForm.cover = ''
+    blogForm.tags = []
+    blogForm.content = ''
+    coverPreview.value = ''
+    coverFile.value = null
+    vditorInstance.setValue('')
+    
+    // 可以跳转到博客列表或详情页
+    router.push('/admin/blogs')
+    
+  } catch (error) {
+    // 如果是用户取消操作，不显示错误信息
+    if (error === 'cancel') {
+      return
+    }
+    console.error('发布失败:', error)
+    ElMessage.error(error.message || '发布失败，请重试')
   } finally {
     loading.value = false
   }
@@ -231,6 +371,13 @@ const addTag = (event) => {
 
 const removeTag = (index) => {
   blogForm.tags.splice(index, 1)
+}
+
+// 手动触发内容验证
+const validateContentField = () => {
+  if (formRef.value) {
+    formRef.value.validateField('content')
+  }
 }
 
 onMounted(async () => {
@@ -279,6 +426,10 @@ onMounted(async () => {
         'fullscreen',
         'preview'
       ],
+      input: (value) => {
+        // 当内容变化时触发验证
+        validateContentField()
+      },
       after: () => {
         console.log('Vditor initialized successfully')
         vditorInstance.setValue(blogForm.content)

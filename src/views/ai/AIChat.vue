@@ -863,7 +863,7 @@ onUnmounted(() => {
 }
 
 .message-text {
-  font-size: 18px;
+  font-size: 17.5px;
   line-height: 1.5;
   word-wrap: break-word;
 }

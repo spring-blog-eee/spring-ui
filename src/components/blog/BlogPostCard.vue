@@ -11,7 +11,6 @@
     
     <div class="blog-content">
       <h3 class="blog-title">{{ post.title }}</h3>
-      <p class="blog-excerpt">{{ post.excerpt }}</p>
       
       <div class="blog-meta">
         <div class="author-info">
@@ -137,18 +136,6 @@ const formatDate = (date) => {
 
 .dark-mode .blog-title {
   color: var(--el-text-color-primary);
-}
-
-.blog-excerpt {
-  font-size: 0.95rem;
-  color: #64748b;
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-  flex: 1;
-}
-
-.dark-mode .blog-excerpt {
-  color: var(--el-text-color-regular);
 }
 
 .blog-meta {
