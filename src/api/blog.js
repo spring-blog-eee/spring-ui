@@ -17,4 +17,12 @@ export const blogApi = {
   {
     return axios.post(prefix + '/blog/get', params)
   },
+  getTop3Blogs(params)
+  {
+    return axios.post(prefix + '/blog/list-top', params)
+  },
+  shiftTopBlog(params)
+  {
+    return axios.post(prefix + '/blog/shift-top', params)
+  }
 }

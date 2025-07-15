@@ -1,45 +1,59 @@
 <template>
-  <router-link :to="`/blog/${post.id}`" class="blog-card">
-    <div class="blog-cover">
-      <img :src="post.cover" :alt="post.title" loading="lazy" />
-      <div class="blog-tags">
-        <span v-for="tag in post.tags.slice(0, 3)" :key="tag" class="tag">
-          {{ tag }}
-        </span>
-      </div>
-    </div>
-    
-    <div class="blog-content">
-      <h3 class="blog-title">{{ post.title }}</h3>
-      
-      <div class="blog-meta">
-        <div class="author-info">
-          <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
-          <span class="author-name">{{ post.author.name }}</span>
+  <div class="blog-card">
+    <router-link :to="`/blog/${post.id}`" class="blog-link">
+      <div class="blog-cover">
+        <img :src="post.cover" :alt="post.title" loading="lazy" />
+        <!-- <div v-if="post.isTop" class="top-badge">
+          <el-icon><Top /></el-icon>
+          <span>置顶</span>
+        </div> -->
+        <div class="blog-tags">
+          <span v-for="tag in post.tags.slice(0, 3)" :key="tag" class="tag">
+            {{ tag }}
+          </span>
         </div>
+      </div>
+      
+      <div class="blog-content">
+        <h3 class="blog-title">{{ post.title }}</h3>
         
-        <div class="blog-date">{{ formatDate(post.publishedAt) }}</div>
+        <div class="blog-meta">
+          <div class="author-info">
+            <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
+            <span class="author-name">{{ post.author.name }}</span>
+          </div>
+          
+          <div class="blog-date">{{ formatDate(post.publishedAt) }}</div>
+        </div>
       </div>
-      
-      <div class="blog-stats">
-        <div class="stat">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>{{ post.comments }}</span>
+    </router-link>
+    
+    <div class="blog-stats">
+      <div class="stat">
+        <el-icon><ChatDotRound /></el-icon>
+        <span>{{ post.comments }}</span>
         评论
-        </div>
-        <div class="stat">
-          <el-icon><Star /></el-icon>
-          <span>{{ post.likes }}</span>
-        赞
-        </div>
+      </div>
+      <div 
+        class="stat like-stat" 
+        :class="{ 'liked': post.liked }"
+        @click="handleLike"
+      >
+        <el-icon><Star /></el-icon>
+        <span>{{ post.likes }}</span>
+        {{ post.liked ? '已赞' : '赞' }}
       </div>
     </div>
-  </router-link>
+  </div>
 </template>
 
 <script setup>
 import { defineProps } from 'vue'
+import { Top, ChatDotRound, Star } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import { useBlogStore } from '../../stores/blog'
+import { useUserStore } from '../../stores/user'
 
 // Define props
 const props = defineProps({
@@ -49,23 +63,65 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['like-updated'])
+
+// Stores
+const blogStore = useBlogStore()
+const userStore = useUserStore()
+
 // Format date
 const formatDate = (date) => {
   return dayjs(date).format('MMM D, YYYY')
+}
+
+// Handle like
+const handleLike = async (event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再点赞')
+    return
+  }
+  
+  try {
+    const userId = userStore.user.id
+    const blogId = props.post.id
+    
+    if (props.post.liked) {
+      await blogStore.unlikeBlog(blogId, userId)
+      ElMessage.success('取消点赞成功')
+    } else {
+      await blogStore.likeBlog(blogId, userId)
+      ElMessage.success('点赞成功')
+    }
+    
+    // 通知父组件点赞状态已更新
+    emit('like-updated', { blogId, liked: !props.post.liked })
+  } catch (error) {
+    console.error('点赞操作失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
+  }
 }
 </script>
 
 <style scoped>
 .blog-card {
-  display: block;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s, box-shadow 0.3s;
-  text-decoration: none;
-  color: inherit;
   background-color: white;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.blog-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -84,6 +140,10 @@ const formatDate = (date) => {
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
+.blog-link:hover .blog-cover img {
+  transform: scale(1.05);
+}
+
 .blog-cover {
   position: relative;
   height: 200px;
@@ -97,10 +157,6 @@ const formatDate = (date) => {
   transition: transform 0.5s;
 }
 
-.blog-card:hover .blog-cover img {
-  transform: scale(1.05);
-}
-
 .blog-tags {
   position: absolute;
   bottom: 12px;
@@ -108,6 +164,27 @@ const formatDate = (date) => {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.top-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background-color: rgba(255, 193, 7, 0.95);
+  color: #856404;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.top-badge :deep(svg) {
+  font-size: 0.875rem;
 }
 
 .tag {
@@ -176,6 +253,7 @@ const formatDate = (date) => {
 .blog-stats {
   display: flex;
   gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
 }
 
 .stat {
@@ -188,5 +266,24 @@ const formatDate = (date) => {
 
 .stat :deep(svg) {
   font-size: 1rem;
+}
+
+.like-stat {
+  cursor: pointer;
+  transition: color 0.3s, transform 0.2s;
+  user-select: none;
+}
+
+.like-stat:hover {
+  color: #f59e0b;
+  transform: scale(1.05);
+}
+
+.like-stat.liked {
+  color: #f59e0b;
+}
+
+.like-stat.liked :deep(svg) {
+  color: #f59e0b;
 }
 </style>

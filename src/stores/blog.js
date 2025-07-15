@@ -30,7 +30,7 @@ export const useBlogStore = defineStore('blog', () => {
         const blogData = response.data.data || []
         
         // 处理博客数据，解析tags字段并转换为组件期望的格式
-        blogs.value = blogData.map(blog => ({
+        const processedBlogs = blogData.map(blog => ({
           ...blog,
           id: blog.id,
           title: blog.title,
@@ -43,8 +43,18 @@ export const useBlogStore = defineStore('blog', () => {
           },
           publishedAt: blog.creationTime,
           createdAt: blog.creationTime,
+          isTop: blog.type === 1, // 添加置顶状态字段
+          likes: blog.likes || 0, // 添加点赞数字段
+          comments: blog.comments || 0, // 添加评论数字段
           // 保留原始数据
         }))
+        
+        // 按置顶状态排序：置顶文章在前，然后按创建时间倒序
+        blogs.value = processedBlogs.sort((a, b) => {
+          if (a.isTop && !b.isTop) return -1
+          if (!a.isTop && b.isTop) return 1
+          return new Date(b.creationTime) - new Date(a.creationTime)
+        })
 
         console.log(blogs.value)
         
@@ -117,8 +127,10 @@ export const useBlogStore = defineStore('blog', () => {
           },
           publishedAt: blogData.creationTime || new Date().toISOString(),
           createdAt: blogData.creationTime || new Date().toISOString(),
-          likes: 0,
-          liked: false
+          isTop: blogData.type === 1, // 添加置顶状态字段
+          likes: blogData.likes || 0, // 使用后端返回的点赞数
+          comments: blogData.comments || 0, // 使用后端返回的评论数
+          liked: false // 默认未点赞，后续可通过API查询用户是否已点赞
         }
         
         console.log('Current blog set:', currentBlog.value)
@@ -234,23 +246,30 @@ export const useBlogStore = defineStore('blog', () => {
   }
 
   // Like a blog
-  async function likeBlog(id) {
+  async function likeBlog(blogId, userId) {
     try {
       loading.value = true
       error.value = null
-      const response = await blogApi.likeBlog(id)
       
-      // Update the blog in the list if it exists
-      const index = blogs.value.findIndex(blog => blog.id === id)
-      if (index !== -1) {
-        blogs.value[index].likes = response.data.likes
-        blogs.value[index].liked = response.data.liked
-      }
+      // 导入点赞API
+      const { likeApi } = await import('../api/like')
       
-      // Update current blog if it's the one being liked
-      if (currentBlog.value && currentBlog.value.id === id) {
-        currentBlog.value.likes = response.data.likes
-        currentBlog.value.liked = response.data.liked
+      // 调用点赞API
+      const response = await likeApi.addLike({ id: blogId, userId })
+      
+      if (response.data && response.data.code === 200) {
+        // 更新博客列表中的点赞数
+        const index = blogs.value.findIndex(blog => blog.id === blogId)
+        if (index !== -1) {
+          blogs.value[index].likes = (blogs.value[index].likes || 0) + 1
+          blogs.value[index].liked = true
+        }
+        
+        // 更新当前博客的点赞数
+        if (currentBlog.value && currentBlog.value.id === blogId) {
+          currentBlog.value.likes = (currentBlog.value.likes || 0) + 1
+          currentBlog.value.liked = true
+        }
       }
       
       return response.data
@@ -259,6 +278,108 @@ export const useBlogStore = defineStore('blog', () => {
       throw error.value
     } finally {
       loading.value = false
+    }
+  }
+
+  // Unlike a blog
+  async function unlikeBlog(blogId, userId) {
+    try {
+      loading.value = true
+      error.value = null
+      
+      // 导入点赞API
+      const { likeApi } = await import('../api/like')
+      
+      // 调用取消点赞API
+      const response = await likeApi.deleteLike({ id: blogId, userId })
+      
+      if (response.data && response.data.code === 200) {
+        // 更新博客列表中的点赞数
+        const index = blogs.value.findIndex(blog => blog.id === blogId)
+        if (index !== -1) {
+          blogs.value[index].likes = Math.max((blogs.value[index].likes || 0) - 1, 0)
+          blogs.value[index].liked = false
+        }
+        
+        // 更新当前博客的点赞数
+        if (currentBlog.value && currentBlog.value.id === blogId) {
+          currentBlog.value.likes = Math.max((currentBlog.value.likes || 0) - 1, 0)
+          currentBlog.value.liked = false
+        }
+      }
+      
+      return response.data
+    } catch (err) {
+      error.value = err.message || 'Failed to unlike blog'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Check if user liked a blog
+  async function checkLikeStatus(blogId, userId) {
+    try {
+      // 导入点赞API
+      const { likeApi } = await import('../api/like')
+      
+      // 调用检查点赞状态API
+      const response = await likeApi.isLiked({ id: blogId, userId })
+      
+      if (response.data && response.data.code === 200) {
+        const isLiked = response.data.data
+        
+        // 更新博客列表中的点赞状态
+        const index = blogs.value.findIndex(blog => blog.id === blogId)
+        if (index !== -1) {
+          blogs.value[index].liked = isLiked
+        }
+        
+        // 更新当前博客的点赞状态
+        if (currentBlog.value && currentBlog.value.id === blogId) {
+          currentBlog.value.liked = isLiked
+        }
+        
+        return isLiked
+      }
+      
+      return false
+    } catch (err) {
+      console.error('Failed to check like status:', err)
+      return false
+    }
+  }
+
+  // Get like count for a blog
+  async function getLikeCount(blogId) {
+    try {
+      // 导入点赞API
+      const { likeApi } = await import('../api/like')
+      
+      // 调用获取点赞数API
+      const response = await likeApi.getLikeCount({ id: blogId })
+      
+      if (response.data && response.data.code === 200) {
+        const likeCount = response.data.data
+        
+        // 更新博客列表中的点赞数
+        const index = blogs.value.findIndex(blog => blog.id === blogId)
+        if (index !== -1) {
+          blogs.value[index].likes = likeCount
+        }
+        
+        // 更新当前博客的点赞数
+        if (currentBlog.value && currentBlog.value.id === blogId) {
+          currentBlog.value.likes = likeCount
+        }
+        
+        return likeCount
+      }
+      
+      return 0
+    } catch (err) {
+      console.error('Failed to get like count:', err)
+      return 0
     }
   }
 
@@ -278,6 +399,62 @@ export const useBlogStore = defineStore('blog', () => {
     }
   }
 
+  // Fetch tags from existing blogs
+  async function fetchTags() {
+    try {
+      // 如果还没有博客数据，先获取博客列表
+      if (blogs.value.length === 0) {
+        await fetchBlogs()
+      }
+      
+      // 从所有博客中提取唯一标签
+      const allTags = new Set()
+      blogs.value.forEach(blog => {
+        if (blog.tags && Array.isArray(blog.tags)) {
+          blog.tags.forEach(tag => allTags.add(tag))
+        }
+      })
+      
+      tags.value = Array.from(allTags)
+      return tags.value
+    } catch (err) {
+      console.error('Failed to fetch tags:', err)
+      return []
+    }
+  }
+
+  // Toggle blog top status
+  async function toggleTopBlog(blogId, isTop) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await blogApi.shiftTopBlog({ 
+        id: blogId, 
+        type: isTop ? 1 : 0 
+      })
+      
+      // 更新本地博客列表中的置顶状态
+      const index = blogs.value.findIndex(blog => blog.id === blogId)
+      if (index !== -1) {
+        blogs.value[index].isTop = isTop
+        blogs.value[index].type = isTop ? 1 : 0
+      }
+      
+      // 更新当前博客的置顶状态
+      if (currentBlog.value && currentBlog.value.id === blogId) {
+        currentBlog.value.isTop = isTop
+        currentBlog.value.type = isTop ? 1 : 0
+      }
+      
+      return response.data
+    } catch (err) {
+      error.value = err.message || 'Failed to toggle blog top status'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     blogs,
     currentBlog,
@@ -291,6 +468,11 @@ export const useBlogStore = defineStore('blog', () => {
     updateBlog,
     deleteBlog,
     likeBlog,
-    fetchFeaturedBlogs
+    unlikeBlog,
+    checkLikeStatus,
+    getLikeCount,
+    fetchTags,
+    fetchFeaturedBlogs,
+    toggleTopBlog
   }
 })

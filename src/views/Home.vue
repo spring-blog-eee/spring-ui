@@ -21,7 +21,7 @@
     <!-- Featured posts section -->
     <section class="featured-section">
       <div class="container section-header">
-        <h2>特色文章</h2>
+        <h2>热点内容</h2>
         <router-link to="/blog" class="view-all">
           查看全部 <el-icon><ArrowRight /></el-icon>
         </router-link>
@@ -39,6 +39,7 @@
             v-for="post in featuredPosts" 
             :key="post.id" 
             :post="post" 
+            @like-updated="handleLikeUpdated"
           />
         </template>
       </div>
@@ -67,65 +68,74 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
+import { useBlogStore } from '../stores/blog'
 import BlogPostCard from '../components/blog/BlogPostCard.vue'
+import { blogApi } from '../api/blog'
 
 const userStore = useUserStore()
+const blogStore = useBlogStore()
 const featuredPosts = ref([])
 const loading = ref(true)
 const newsletterEmail = ref('')
 
-// Mock featured posts data for demo
-const loadFeaturedPosts = () => {
-  loading.value = true
-  
-  // Simulate API call
-  setTimeout(() => {
-    featuredPosts.value = [
-      {
-        id: 1,
-        title: 'Vue 3 Composition API 入门',
-        excerpt: '学习 Vue 3 Composition API 的基础知识以及它如何改变我们构建 Vue 应用程序的方式。',
-        author: {
-          name: 'Alex Johnson',
-          avatar: 'https://i.pravatar.cc/150?img=1'
-        },
-        cover: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg',
-        publishedAt: '2025-01-15T10:00:00Z',
-        tags: ['Vue', 'JavaScript', 'Frontend'],
-        likes: 42,
-        comments: 12
-      },
-      {
-        id: 2,
-        title: '使用 CSS Grid 构建响应式布局',
-        excerpt: '探索 CSS Grid 如何彻底改变你的网页布局，让响应式设计比以往任何时候都更容易。',
-        author: {
-          name: 'Sarah Chen',
-          avatar: 'https://i.pravatar.cc/150?img=5'
-        },
-        cover: 'https://images.pexels.com/photos/270348/pexels-photo-270348.jpeg',
-        publishedAt: '2025-01-10T14:30:00Z',
-        tags: ['CSS', 'Web Design', 'Responsive'],
-        likes: 36,
-        comments: 8
-      },
-      {
-        id: 3,
-        title: '每个开发者都应该知道的现代 JavaScript 特性',
-        excerpt: '一份关于提升代码质量和生产力的必备 JavaScript 特性的全面指南。',
-        author: {
-          name: 'Michael Rodriguez',
-          avatar: 'https://i.pravatar.cc/150?img=8'
-        },
-        cover: 'https://images.pexels.com/photos/4164418/pexels-photo-4164418.jpeg',
-        publishedAt: '2025-01-05T09:15:00Z',
-        tags: ['JavaScript', 'ES6', 'Programming'],
-        likes: 29,
-        comments: 5
-      }
-    ]
+// Load featured posts from API
+const loadFeaturedPosts = async () => {
+  try {
+    loading.value = true
+    
+    // 调用 getTop3Blogs API 获取特色文章
+    const response = await blogApi.getTop3Blogs({
+      pageIndex: 1,
+    })
+    
+    // 处理响应数据结构，参考 blog store 的处理方式
+    if (response.data && response.data.code === 200) {
+      const blogData = response.data.data || []
+      
+      // 处理博客数据，解析tags字段并转换为组件期望的格式
+      featuredPosts.value = await Promise.all(blogData.map(async blog => {
+        const blogPost = {
+          ...blog,
+          id: blog.id,
+          title: blog.title,
+          cover: blog.imgUrl || '/default-cover.jpg',
+          excerpt: blog.excerpt || '暂无摘要...',
+          tags: JSON.parse(blog.tags || '[]'),
+          author: {
+            name: blog.nickname || '匿名用户',
+            avatar: blog.authorAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          publishedAt: blog.creationTime,
+          createdAt: blog.creationTime,
+          likes: blog.likes || 0, // 直接使用API响应中的likes字段
+          comments: 0,
+          liked: false
+        }
+        
+        try {
+          // 如果用户已登录，检查点赞状态
+          if (userStore.isLoggedIn && userStore.user?.id) {
+            const isLiked = await blogStore.checkLikeStatus(blog.id, userStore.user.id)
+            blogPost.liked = isLiked
+          }
+        } catch (error) {
+          console.error(`Failed to load like status for blog ${blog.id}:`, error)
+        }
+        
+        return blogPost
+      }))
+      
+      console.log('Featured posts loaded:', featuredPosts.value)
+    } else {
+      featuredPosts.value = []
+      console.log('No featured posts found or API error')
+    }
+  } catch (err) {
+    console.error('Failed to load featured posts:', err)
+    featuredPosts.value = []
+  } finally {
     loading.value = false
-  }, 1000)
+  }
 }
 
 const subscribeNewsletter = () => {
@@ -137,6 +147,12 @@ const subscribeNewsletter = () => {
   // Simulate API call
   ElMessage.success('感谢你订阅我们的新闻通讯！')
   newsletterEmail.value = ''
+}
+
+// Handle like update event from BlogPostCard
+const handleLikeUpdated = async () => {
+  // 重新加载特色博客数据以获取最新的点赞状态
+  await loadFeaturedPosts()
 }
 
 onMounted(() => {

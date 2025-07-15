@@ -35,7 +35,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port: 5000,
     proxy: {
       '/api': {
         target: "http://localhost:58080",
@@ -56,6 +56,11 @@ export default defineConfig({
         target: "http://localhost:58050",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/blogs/, '')
+      },
+      '/likes':{
+        target: "http://localhost:58050",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/likes/, '')
       }
     }
   }

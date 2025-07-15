@@ -29,9 +29,14 @@
               </div>
             </div>
             <div class="blog-actions">
-              <el-button type="primary" plain @click="handleLike">
+              <el-button 
+                :type="blog.liked ? 'primary' : 'primary'" 
+                :plain="!blog.liked"
+                @click="handleLike"
+                :style="blog.liked ? 'background-color: #409EFF; border-color: #409EFF; color: white;' : ''"
+              >
                 <el-icon><Star /></el-icon>
-                {{ blog.likes }} 个赞
+                {{ blog.liked ? '已赞' : '点赞' }} ({{ blog.likes }})
               </el-button>
             </div>
           </div>
@@ -199,10 +204,25 @@ const handleLike = async () => {
   }
   
   try {
-    await blogStore.likeBlog(route.params.id)
-    ElMessage.success(blog.value.liked ? 'Post unliked' : 'Post liked')
+    const blogId = parseInt(route.params.id)
+    const userId = userStore.user?.id
+    
+    if (!userId) {
+      ElMessage.error('用户信息获取失败')
+      return
+    }
+    
+    if (blog.value.liked) {
+      // 取消点赞
+      await blogStore.unlikeBlog(blogId, userId)
+      ElMessage.success('取消点赞成功')
+    } else {
+      // 点赞
+      await blogStore.likeBlog(blogId, userId)
+      ElMessage.success('点赞成功')
+    }
   } catch (err) {
-    ElMessage.error('Failed to like post')
+    ElMessage.error('操作失败，请重试')
   }
 }
 
@@ -239,8 +259,17 @@ const can删除Comment = (comment) => {
 }
 
 // Lifecycle
-onMounted(() => {
-  fetchBlog()
+onMounted(async () => {
+  await fetchBlog()
+  
+  // 如果用户已登录，检查点赞状态
+  if (userStore.isLoggedIn && userStore.user?.id && blog.value?.id) {
+    try {
+      await blogStore.checkLikeStatus(blog.value.id, userStore.user.id)
+    } catch (err) {
+      console.error('检查点赞状态失败:', err)
+    }
+  }
 })
 </script>
 
