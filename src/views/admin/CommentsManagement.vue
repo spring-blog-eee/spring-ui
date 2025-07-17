@@ -50,7 +50,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column label="Actions" width="200" fixed="right">
+      <el-table-column label="Actions" width="300" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="row.status === 'pending'"
@@ -62,7 +62,22 @@
             Approve
           </el-button>
           
-          <el-button type="danger" link @click="handleDelete(row)">
+          <el-button
+            v-if="canPinComment(row)"
+            :type="row.isTop ? 'warning' : 'primary'"
+            link
+            @click="handleToggleTop(row)"
+          >
+            <el-icon><Top /></el-icon>
+            {{ row.isTop ? '取消置顶' : '置顶' }}
+          </el-button>
+          
+          <el-button 
+            v-if="canManageComment(row)"
+            type="danger" 
+            link 
+            @click="handleDelete(row)"
+          >
             <el-icon><Delete /></el-icon>
             Delete
           </el-button>
@@ -85,10 +100,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { Check, Delete, Top } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useCommentStore } from '../../stores/comment'
+import { useUserStore } from '../../stores/user'
 
 const commentStore = useCommentStore()
+const userStore = useUserStore()
 
 // State
 const loading = ref(false)
@@ -101,10 +119,11 @@ const total = ref(0)
 
 // Methods
 const formatDate = (date) => {
-  return dayjs(date).format('MMM D, YYYY')
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
 const fetchComments = async () => {
+  console.log('🔄 开始获取评论数据...')
   loading.value = true
   try {
     const response = await commentStore.fetchAllComments({
@@ -113,9 +132,15 @@ const fetchComments = async () => {
       search: searchQuery.value,
       status: filterStatus.value
     })
+    console.log('📊 评论数据获取成功:', {
+      commentsCount: response.comments?.length || 0,
+      total: response.total,
+      comments: response.comments
+    })
     comments.value = response.comments
     total.value = response.total
   } catch (error) {
+    console.error('❌ 评论数据获取失败:', error)
     ElMessage.error('Failed to fetch comments')
   } finally {
     loading.value = false
@@ -147,7 +172,110 @@ const handleApprove = async (comment) => {
   }
 }
 
+// 权限检查函数：只有博客作者或管理员才能管理评论
+const canManageComment = (comment) => {
+  console.log('=== canManageComment 权限检查 ===', {
+    commentId: comment.id,
+    isAdmin: userStore.isAdmin,
+    currentUserId: userStore.user?.id,
+    blogAuthorId: comment.blogAuthorId,
+    commentAuthorId: comment.author?.id,
+    comment: comment
+  })
+  
+  // 管理员可以管理所有评论
+  if (userStore.isAdmin) {
+    console.log('✅ 管理员权限通过')
+    return true
+  }
+  
+  // 博客作者可以管理自己博客下的评论
+  if (comment.blogAuthorId && userStore.user?.id === comment.blogAuthorId) {
+    console.log('✅ 博客作者权限通过')
+    return true
+  }
+  
+  // 评论作者可以管理自己的评论（仅删除）
+  if (comment.author?.id && userStore.user?.id === comment.author.id) {
+    console.log('✅ 评论作者权限通过')
+    return true
+  }
+  
+  console.log('❌ 权限检查失败')
+  return false
+}
+
+// 置顶权限检查：只有博客作者或管理员才能置顶评论
+const canPinComment = (comment) => {
+  console.log('=== canPinComment 置顶权限检查 ===', {
+    commentId: comment.id,
+    isAdmin: userStore.isAdmin,
+    currentUserId: userStore.user?.id,
+    blogAuthorId: comment.blogAuthorId,
+    comment: comment
+  })
+  
+  // 管理员可以置顶所有评论
+  if (userStore.isAdmin) {
+    console.log('✅ 管理员置顶权限通过')
+    return true
+  }
+  
+  // 博客作者可以置顶自己博客下的评论
+  if (comment.blogAuthorId && userStore.user?.id === comment.blogAuthorId) {
+    console.log('✅ 博客作者置顶权限通过')
+    return true
+  }
+  
+  console.log('❌ 置顶权限检查失败')
+  return false
+}
+
+const handleToggleTop = async (comment) => {
+  if (!canPinComment(comment)) {
+    ElMessage.error('您没有权限执行此操作')
+    return
+  }
+  
+  try {
+    const action = comment.isTop ? '取消置顶' : '置顶'
+    await ElMessageBox.confirm(
+      `确定要${action}这条评论吗？`,
+      '确认操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    if (!userStore.user?.id) {
+      ElMessage.error('用户信息获取失败')
+      return
+    }
+    
+    if (comment.isTop) {
+      await commentStore.cancelCommentToTop(comment.id, userStore.user.id)
+      ElMessage.success('评论取消置顶成功')
+    } else {
+      await commentStore.addCommentToTop(comment.id, userStore.user.id)
+      ElMessage.success('评论置顶成功')
+    }
+    
+    fetchComments()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(`操作失败: ${error.message || error}`)
+    }
+  }
+}
+
 const handleDelete = async (comment) => {
+  if (!canManageComment(comment)) {
+    ElMessage.error('您没有权限删除此评论')
+    return
+  }
+  
   try {
     await ElMessageBox.confirm(
       'Are you sure you want to delete this comment?',
@@ -159,7 +287,12 @@ const handleDelete = async (comment) => {
       }
     )
     
-    await commentStore.deleteComment(comment.id)
+    if (!userStore.user?.id) {
+      ElMessage.error('用户信息获取失败')
+      return
+    }
+    
+    await commentStore.deleteComment(comment.id, userStore.user.id)
     ElMessage.success('Comment deleted successfully')
     fetchComments()
   } catch (error) {
@@ -170,6 +303,12 @@ const handleDelete = async (comment) => {
 }
 
 onMounted(() => {
+  console.log('🚀 CommentsManagement 组件已挂载')
+  console.log('👤 当前用户信息:', {
+    isLoggedIn: userStore.isLoggedIn,
+    isAdmin: userStore.isAdmin,
+    user: userStore.user
+  })
   fetchComments()
 })
 </script>

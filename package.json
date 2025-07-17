@@ -25,6 +25,7 @@
     "prismjs": "^1.30.0",
     "vditor": "^3.9.6",
     "vue": "^3.4.38",
+    "vue-advanced-cropper": "^2.8.9",
     "vue-router": "^4.2.5"
   },
   "devDependencies": {

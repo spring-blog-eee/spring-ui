@@ -75,6 +75,13 @@
             <div class="item-actions">
               <button class="action-btn download-btn" @click="downloadFile(file)">下载</button>
               <button class="action-btn view-btn" @click="viewFile(file)">预览</button>
+              <button 
+                v-if="userStore.isLoggedIn && userStore.isAdmin" 
+                class="action-btn delete-btn" 
+                @click="deletePublicFile(file)"
+              >
+                删除
+              </button>
             </div>
           </div>
         </template>
@@ -709,6 +716,44 @@ const shareFile = async (file) => {
     ElMessage.error('生成分享链接失败，请稍后再试')
   }
 }
+
+// 删除公共资源文件
+const deletePublicFile = async (file) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除公共资源文件 "${file.objectName || file.name}" 吗？此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    
+    // 调用删除API
+    const fileWithBucket = {
+      ...file,
+      bucketName: bucketName.value
+    }
+    const response = await resourceApi.deleteResource(fileWithBucket)
+    
+    if (response.data && response.data.code === 200) {
+      // 删除成功后重新获取公共资源列表和计数
+      await fetchPublicCount()
+      await fetchPublicResources(publicCurrentPage.value)
+      
+      ElMessage.success(`公共资源文件 "${file.objectName || file.name}" 删除成功！`)
+    } else {
+      throw new Error('删除公共资源文件失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除公共资源文件失败:', error)
+      ElMessage.error('删除公共资源文件失败，请稍后再试')
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -884,7 +929,7 @@ const shareFile = async (file) => {
 
 .file-list-header {
   display: grid;
-  grid-template-columns: 40px 1fr 100px 120px 160px;
+  grid-template-columns: 40px 1fr 80px 120px 180px;
   gap: 15px;
   padding: 15px 20px;
   background-color: #f8f9fa;
@@ -904,7 +949,7 @@ const shareFile = async (file) => {
 
 .file-item {
   display: grid;
-  grid-template-columns: 40px 1fr 100px 120px 160px;
+  grid-template-columns: 40px 1fr 80px 120px 180px;
   gap: 15px;
   padding: 15px 20px;
   border-bottom: 1px solid #f1f3f4;
@@ -1051,7 +1096,7 @@ const shareFile = async (file) => {
   }
   
   .file-list-header {
-    grid-template-columns: 30px 1fr 80px 140px;
+    grid-template-columns: 30px 1fr 60px 160px;
     gap: 10px;
     padding: 10px 15px;
     font-size: 0.8rem;
@@ -1062,7 +1107,7 @@ const shareFile = async (file) => {
   }
   
   .file-item {
-    grid-template-columns: 30px 1fr 80px 140px;
+    grid-template-columns: 30px 1fr 60px 160px;
     gap: 10px;
     padding: 10px 15px;
   }

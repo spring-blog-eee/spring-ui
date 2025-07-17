@@ -57,11 +57,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/blogs/, '')
       },
-      '/likes':{
-        target: "http://localhost:58050",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/likes/, '')
-      }
     }
   }
 })

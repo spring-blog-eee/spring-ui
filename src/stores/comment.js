@@ -17,20 +17,49 @@ export const useCommentStore = defineStore('comment', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await commentApi.getComments(blogId, {
-        page: pagination.value.page,
-        limit: pagination.value.limit,
-        ...params
+      const response = await commentApi.getComments({
+        blogId: parseInt(blogId),
+        pageIndex: params.page || pagination.value.page,
       })
-      comments.value = response.data.comments
-      pagination.value = {
-        page: response.data.page,
-        limit: response.data.limit,
-        total: response.data.total
+      
+      if (response.data && response.data.code === 200) {
+        const commentData = response.data.data || []
+        
+        // 处理评论数据，转换为组件期望的格式
+        comments.value = commentData.map(comment => ({
+          id: comment.id,
+          content: comment.content,
+          author: {
+            id: comment.userId,
+            name: comment.nickname || '匿名用户',
+            avatar: comment.userAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          createdAt: comment.creationTime,
+          blogId: comment.blogId,
+          isTop: comment.type === 1 // type为1表示置顶
+        }))
+        
+        // Sort comments: pinned comments first
+        comments.value.sort((a, b) => {
+          if (a.isTop && !b.isTop) return -1
+          if (!a.isTop && b.isTop) return 1
+          return new Date(b.createdAt) - new Date(a.createdAt)
+        })
+        
+        pagination.value = {
+          page: params.page || pagination.value.page,
+          limit: params.limit || pagination.value.limit,
+          total: response.data.total || commentData.length
+        }
+      } else {
+        comments.value = []
+        pagination.value.total = 0
       }
-      return response.data
+      
+      return { comments: comments.value, pagination: pagination.value }
     } catch (err) {
       error.value = err.message || 'Failed to fetch comments'
+      comments.value = []
       throw error.value
     } finally {
       loading.value = false
@@ -38,14 +67,21 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   // Add a comment
-  async function addComment(blogId, content) {
+  async function addComment(blogId, content, userId) {
     try {
       loading.value = true
       error.value = null
-      const response = await commentApi.addComment(blogId, { content })
-      comments.value.unshift(response.data)
-      pagination.value.total += 1
-      return response.data
+      const response = await commentApi.addComment({
+        blogId: parseInt(blogId),
+        content: content,
+        userId: parseInt(userId)
+      })
+      
+      if (response.data && response.data.code === 200) {
+        return response.data
+      } else {
+        throw new Error(response.data?.message || 'Failed to add comment')
+      }
     } catch (err) {
       error.value = err.message || 'Failed to add comment'
       throw error.value
@@ -55,14 +91,23 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   // Delete a comment
-  async function deleteComment(commentId) {
+  async function deleteComment(commentId, userId) {
     try {
       loading.value = true
       error.value = null
-      await commentApi.deleteComment(commentId)
-      comments.value = comments.value.filter(c => c.id !== commentId)
-      pagination.value.total -= 1
-      return true
+      const response = await commentApi.deleteComment({
+        id: parseInt(commentId),
+        userId: parseInt(userId)
+      })
+      
+      if (response.data && response.data.code === 200) {
+        // 从本地列表中移除评论
+        comments.value = comments.value.filter(c => c.id !== commentId)
+        pagination.value.total -= 1
+        return true
+      } else {
+        throw new Error(response.data?.message || 'Failed to delete comment')
+      }
     } catch (err) {
       error.value = err.message || 'Failed to delete comment'
       throw error.value
@@ -77,17 +122,46 @@ export const useCommentStore = defineStore('comment', () => {
       loading.value = true
       error.value = null
       const response = await commentApi.getAllComments({
-        page: pagination.value.page,
-        limit: pagination.value.limit,
-        ...params
+        pageIndex: params.page || pagination.value.page,
+        limit: params.limit || pagination.value.limit,
+        search: params.search || '',
+        status: params.status || ''
       })
-      comments.value = response.data.comments
-      pagination.value = {
-        page: response.data.page,
-        limit: response.data.limit,
-        total: response.data.total
+      
+      if (response.data && response.data.code === 200) {
+        const commentData = response.data.data || []
+        
+        // 处理评论数据，转换为组件期望的格式
+        const processedComments = commentData.map(comment => ({
+          id: comment.id,
+          content: comment.content,
+          author: {
+            id: comment.userId,
+            name: comment.nickname || '匿名用户',
+            avatar: comment.userAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+          },
+          createdAt: comment.creationTime,
+          blogId: comment.blogId,
+          blogTitle: comment.blogTitle || '未知博客',
+          blogAuthorId: comment.blogAuthorId, // 博客作者ID，用于权限检查
+          status: comment.status || 'approved',
+          isTop: comment.isTop || false
+        }))
+        
+        return {
+          comments: processedComments,
+          total: response.data.total || commentData.length,
+          page: params.page || pagination.value.page,
+          limit: params.limit || pagination.value.limit
+        }
+      } else {
+        return {
+          comments: [],
+          total: 0,
+          page: params.page || pagination.value.page,
+          limit: params.limit || pagination.value.limit
+        }
       }
-      return response.data
     } catch (err) {
       error.value = err.message || 'Failed to fetch all comments'
       throw error.value
@@ -103,15 +177,59 @@ export const useCommentStore = defineStore('comment', () => {
       error.value = null
       const response = await commentApi.approveComment(commentId)
       
-      // Update the comment in the list
-      const index = comments.value.findIndex(c => c.id === commentId)
-      if (index !== -1) {
-        comments.value[index] = response.data
+      if (response.data && response.data.code === 200) {
+        return response.data
+      } else {
+        throw new Error(response.data?.message || 'Failed to approve comment')
       }
-      
-      return response.data
     } catch (err) {
       error.value = err.message || 'Failed to approve comment'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Add comment to top (pin comment)
+  async function addCommentToTop(commentId, userId) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await commentApi.addCommentToTop({
+        id: parseInt(commentId),
+        userId: parseInt(userId)
+      })
+      
+      if (response.data && response.data.code === 200) {
+        return response.data
+      } else {
+        throw new Error(response.data?.message || 'Failed to pin comment')
+      }
+    } catch (err) {
+      error.value = err.message || 'Failed to pin comment'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Cancel comment to top (unpin comment)
+  async function cancelCommentToTop(commentId, userId) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await commentApi.cancelCommentToTop({
+        id: parseInt(commentId),
+        userId: parseInt(userId)
+      })
+      
+      if (response.data && response.data.code === 200) {
+        return response.data
+      } else {
+        throw new Error(response.data?.message || 'Failed to unpin comment')
+      }
+    } catch (err) {
+      error.value = err.message || 'Failed to unpin comment'
       throw error.value
     } finally {
       loading.value = false
@@ -127,6 +245,8 @@ export const useCommentStore = defineStore('comment', () => {
     addComment,
     deleteComment,
     fetchAllComments,
-    approveComment
+    approveComment,
+    addCommentToTop,
+    cancelCommentToTop
   }
 })

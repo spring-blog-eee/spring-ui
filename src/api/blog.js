@@ -24,5 +24,9 @@ export const blogApi = {
   shiftTopBlog(params)
   {
     return axios.post(prefix + '/blog/shift-top', params)
+  },
+  deleteBlog(params)
+  {
+    return axios.post(prefix + '/blog/delete', params)
   }
 }

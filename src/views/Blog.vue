@@ -32,7 +32,7 @@
 
       <div v-else-if="blogs.length" class="blog-grid">
         <div v-for="blog in blogs" :key="blog.id" class="blog-item">
-          <BlogPostCard :post="blog" />
+          <BlogPostCard :post="blog" @like-updated="handleLikeUpdated" />
           <el-button
             v-if="isAdmin"
             class="admin-toggle-btn"
@@ -119,6 +119,12 @@ const handleTagFilter = () => {
 const handlePageChange = (page) => {
   currentPage.value = page
   fetchBlogs()
+}
+
+// Handle like update event from BlogPostCard
+const handleLikeUpdated = async () => {
+  // 重新加载博客列表以获取最新的点赞状态
+  await fetchBlogs()
 }
 
 // 处理置顶操作

@@ -74,19 +74,49 @@
         </el-form-item>
       </el-form>
     </div>
+    
+    <!-- 图片裁剪对话框 -->
+    <el-dialog
+      v-model="cropDialogVisible"
+      title="裁剪封面图片"
+      width="800px"
+      :before-close="handleCropDialogClose"
+    >
+      <div class="crop-container">
+        <div class="crop-info">
+          <p>请按照 4:1 的比例裁剪图片作为文章封面</p>
+        </div>
+        <Cropper
+          ref="cropperRef"
+          :src="cropImageSrc"
+          :stencil-props="{
+            aspectRatio: 4/1
+          }"
+          class="cropper"
+        />
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleCropDialogClose">取消</el-button>
+          <el-button type="primary" @click="handleCropConfirm">确认裁剪</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElDialog } from 'element-plus'
 import { useThemeStore } from '../../stores/theme'
 import { useBlogStore } from '../../stores/blog'
 import { useUserStore } from '../../stores/user'
 import { blogApi } from '../../api/blog'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
+import { Cropper } from 'vue-advanced-cropper'
+import 'vue-advanced-cropper/dist/style.css'
 
 const router = useRouter()
 const themeStore = useThemeStore()
@@ -111,6 +141,12 @@ const tagInput = ref('')
 // 封面图片相关
 const coverPreview = ref('')
 const coverFile = ref(null)
+
+// 图片裁剪相关
+const cropDialogVisible = ref(false)
+const cropImageSrc = ref('')
+const cropperRef = ref(null)
+const originalFile = ref(null)
 
 // 自定义验证器：检查Vditor内容
 const validateContent = (rule, value, callback) => {
@@ -165,11 +201,14 @@ const handleFileChange = (file) => {
     return false
   }
   
-  coverFile.value = file.raw
+  // 保存原始文件
+  originalFile.value = file.raw
+  
+  // 读取文件并显示裁剪对话框
   const reader = new FileReader()
   reader.onload = (e) => {
-    coverPreview.value = e.target.result
-    blogForm.cover = 'pending' // 标记为待上传
+    cropImageSrc.value = e.target.result
+    cropDialogVisible.value = true
   }
   reader.readAsDataURL(file.raw)
 }
@@ -186,6 +225,65 @@ const removeCover = () => {
   coverPreview.value = ''
   coverFile.value = null
   blogForm.cover = ''
+}
+
+// 裁剪相关方法
+const handleCropDialogClose = () => {
+  cropDialogVisible.value = false
+  cropImageSrc.value = ''
+  originalFile.value = null
+}
+
+const handleCropConfirm = async () => {
+  if (!cropperRef.value) {
+    ElMessage.error('裁剪器未初始化')
+    return
+  }
+  
+  try {
+    // 获取裁剪后的canvas
+    const { canvas } = cropperRef.value.getResult()
+    if (!canvas) {
+      ElMessage.error('裁剪失败，请重试')
+      return
+    }
+    
+    // 将canvas转换为blob
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        ElMessage.error('裁剪失败，请重试')
+        return
+      }
+      
+      // 创建新的File对象
+      const fileName = originalFile.value.name
+      const fileExtension = fileName.split('.').pop()
+      const newFileName = `cropped_${Date.now()}.${fileExtension}`
+      
+      coverFile.value = new File([blob], newFileName, {
+        type: blob.type,
+        lastModified: Date.now()
+      })
+      
+      // 创建预览URL
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        coverPreview.value = e.target.result
+        blogForm.cover = 'pending' // 标记为待上传
+      }
+      reader.readAsDataURL(blob)
+      
+      // 关闭对话框
+      cropDialogVisible.value = false
+      cropImageSrc.value = ''
+      originalFile.value = null
+      
+      ElMessage.success('图片裁剪完成')
+    }, 'image/jpeg', 0.9)
+  } catch (error) {
+    console.error('裁剪错误:', error)
+    ElMessage.error('裁剪失败，请重试')
+  }
 }
 
 // 根据文件扩展名获取Content-Type
@@ -639,5 +737,36 @@ h1 {
 
 :deep(.dark-mode) .tag-input-container:focus-within {
   border-color: #409eff;
+}
+
+/* 图片裁剪对话框样式 */
+.crop-container {
+  width: 100%;
+  height: 400px;
+}
+
+.crop-info {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.crop-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.cropper {
+  width: 100%;
+  height: 350px;
+}
+
+:deep(.dark-mode) .crop-info p {
+  color: #ccc;
+}
+
+/* 确保裁剪器在暗黑模式下正常显示 */
+:deep(.dark-mode) .cropper {
+  background-color: #2d3748;
 }
 </style>

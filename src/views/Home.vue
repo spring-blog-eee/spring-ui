@@ -108,7 +108,7 @@ const loadFeaturedPosts = async () => {
           publishedAt: blog.creationTime,
           createdAt: blog.creationTime,
           likes: blog.likes || 0, // 直接使用API响应中的likes字段
-          comments: 0,
+          comments: blog.comments || 0, // 直接使用API响应中的comments字段
           liked: false
         }
         
