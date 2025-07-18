@@ -51,7 +51,7 @@
     <!-- 主对话区域 -->
     <main class="chat-main">
 
-      <div class="chat-messages" ref="messagesContainer">
+      <div class="chat-messages" ref="messagesContainer" @scroll="checkIfUserAtBottom">
         <!-- 对话消息将在这里显示 -->
         <div v-if="messages.length === 0" class="empty-state">
           <p v-if="userStore.isLoggedIn">👋 您好！我是您的AI助手，有什么可以帮助您的吗？</p>
@@ -157,6 +157,7 @@ const isStartingNewChat = ref(false);
 const isAiResponding = ref(false);
 const isWebSearchEnabled = ref(false);
 const isToolCallEnabled = ref(false);
+const isUserAtBottom = ref(true); // 用户是否在底部
 
 // 初始化markdown渲染器
 const md = new MarkdownIt({
@@ -354,11 +355,28 @@ const deleteConversation = async (conversation) => {
   }
 };
 
-// 滚动到底部
+// 检查用户是否在底部
+const checkIfUserAtBottom = () => {
+  if (!messagesContainer.value) return;
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+  const threshold = 100; // 100px的阈值
+  isUserAtBottom.value = scrollTop + clientHeight >= scrollHeight - threshold;
+};
+
+// 智能滚动到底部（只有在用户在底部时才滚动）
+const smartScrollToBottom = async () => {
+  await nextTick();
+  if (messagesContainer.value && isUserAtBottom.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+  }
+};
+
+// 强制滚动到底部
 const scrollToBottom = async () => {
   await nextTick();
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    isUserAtBottom.value = true;
   }
 };
 
@@ -393,7 +411,7 @@ const sendMessage = async () => {
     timestamp: new Date()
   });
   
-  scrollToBottom();
+  smartScrollToBottom();
   
   try {
     loading.value = true;
@@ -465,7 +483,7 @@ const sendMessage = async () => {
       
       // 更新AI消息内容
       messages.value[aiMessageIndex].content = accumulatedContent;
-      scrollToBottom();
+      smartScrollToBottom();
     }
     
     // 如果没有收到任何内容，显示默认消息
@@ -497,7 +515,7 @@ const sendMessage = async () => {
   } finally {
     loading.value = false;
     isAiResponding.value = false; // 确保加载动画被隐藏
-    scrollToBottom();
+    smartScrollToBottom();
   }
 };
 
@@ -1180,6 +1198,19 @@ onUnmounted(() => {
 </style>
 
 <style>
+/* 列表样式 - 全局样式，确保动态生成的markdown内容能应用 */
+.markdown-content ul,
+.markdown-content ol {
+  margin: 8px 0;
+  padding-left: 0;
+  margin-left: 20px;
+}
+
+.markdown-content li {
+  margin: 4px 0;
+  padding-left: 8px;
+}
+
 /* 代码块增强样式 - 全局样式，确保动态生成的内容能应用 */
 .markdown-content .code-block-container {
   position: relative;

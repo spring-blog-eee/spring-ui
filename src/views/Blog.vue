@@ -5,21 +5,26 @@
       <div class="page-header">
         <h1>博客文章</h1>
         <div class="filters">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索文章..."
-            prefix-icon="Search"
-            clearable
-            @input="handleSearch"
-          />
-          <el-select v-model="selectedTag" placeholder="按标签筛选" clearable @change="handleTagFilter">
-            <el-option
-              v-for="tag in tags"
-              :key="tag"
-              :label="tag"
-              :value="tag"
+          <div class="search-container">
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索文章..."
+              prefix-icon="Search"
+              clearable
+              size="large"
+              @keyup.enter="handleSearch"
+              class="search-input"
             />
-          </el-select>
+            <el-button
+              type="primary"
+              size="large"
+              @click="handleSearch"
+              class="search-button"
+            >
+              <el-icon><Search /></el-icon>
+              搜索
+            </el-button>
+          </div>
         </div>
       </div>
 
@@ -68,6 +73,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { useBlogStore } from '../stores/blog'
 import { useUserStore } from '../stores/user'
 import BlogPostCard from '../components/blog/BlogPostCard.vue'
@@ -77,7 +83,6 @@ const userStore = useUserStore()
 
 // State
 const searchQuery = ref('')
-const selectedTag = ref('')
 const currentPage = ref(1)
 const pageSize = ref(9)
 const loading = ref(false)
@@ -86,7 +91,6 @@ const loading = ref(false)
 const blogs = computed(() => blogStore.blogs)
 const total = computed(() => blogStore.pagination.total)
 const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
-const tags = computed(() => blogStore.tags)
 const isAdmin = computed(() => userStore.isAdmin)
 
 // Methods
@@ -96,8 +100,7 @@ const fetchBlogs = async () => {
     await blogStore.fetchBlogs({
       pageIndex: currentPage.value,
       limit: pageSize.value,
-      search: searchQuery.value,
-      tag: selectedTag.value
+      search: searchQuery.value
     })
   } catch (error) {
     console.error('获取博客失败:', error)
@@ -111,11 +114,6 @@ const handleSearch = () => {
   fetchBlogs()
 }
 
-const handleTagFilter = () => {
-  currentPage.value = 1
-  fetchBlogs()
-}
-
 const handlePageChange = (page) => {
   currentPage.value = page
   fetchBlogs()
@@ -125,6 +123,18 @@ const handlePageChange = (page) => {
 const handleLikeUpdated = async () => {
   // 重新加载博客列表以获取最新的点赞状态
   await fetchBlogs()
+  
+  // 重新检查所有博客的点赞状态
+  if (userStore.isLoggedIn && userStore.user?.id) {
+    try {
+      const userId = userStore.user.id
+      for (const blog of blogs.value) {
+        await blogStore.checkLikeStatus(blog.id, userId)
+      }
+    } catch (err) {
+      console.error('检查点赞状态失败:', err)
+    }
+  }
 }
 
 // 处理置顶操作
@@ -157,10 +167,7 @@ const handleToggleTop = async (blog) => {
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    fetchBlogs(),
-    blogStore.fetchTags()
-  ])
+  await fetchBlogs()
   
   // 如果用户已登录，检查所有博客的点赞状态
   if (userStore.isLoggedIn && userStore.user?.id) {
@@ -200,6 +207,24 @@ onMounted(async () => {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+.search-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input {
+  flex: 1;
+}
+
+.search-button {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .blog-grid {
@@ -246,6 +271,14 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .filters {
     flex-direction: column;
+  }
+  
+  .search-container {
+    max-width: 100%;
+  }
+  
+  .search-button {
+    min-width: 80px;
   }
   
   .blog-grid {

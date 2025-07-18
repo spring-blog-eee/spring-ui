@@ -683,11 +683,13 @@ onMounted(async () => {
 .markdown-body ul,
 .markdown-body ol {
   margin-bottom: 1rem;
-  padding-left: 2rem;
+  padding-left: 0;
+  margin-left: 1.5rem;
 }
 
 .markdown-body li {
   margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
 }
 
 .markdown-body blockquote {
@@ -950,5 +952,18 @@ onMounted(async () => {
     flex-direction: column;
     gap: 0.5rem;
   }
+}
+</style>
+
+<style>
+/* 全局样式确保动态渲染的Markdown内容正确对齐 */
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 0 !important;
+  margin-left: 1.5rem !important;
+}
+
+.markdown-body li {
+  padding-left: 0.5rem !important;
 }
 </style>
