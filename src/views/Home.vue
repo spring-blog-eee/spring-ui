@@ -5,7 +5,7 @@
       <div class="container hero-content">
         <div class="hero-text">
           <h1>在 <span>SpringBlog</span><br class="mobile-break"> 分享你的故事</h1>
-          <p>eee的个人技术博客，记录编程心得、分享生活感悟。在这里，思想自由绽放，知识持续积累。</p>
+          <p>一个专注于编程学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
           <div class="hero-buttons">
             <router-link to="/blog" class="btn-primary">
               浏览文章 <el-icon><ArrowRight /></el-icon>

@@ -21,17 +21,16 @@
               >
                 {{ avatarFallback }}
               </el-avatar>
-              <el-upload
-                class="avatar-uploader"
-                action="/api/upload"
-                :show-file-list="false"
-                :on-success="handleAvatarSuccess"
-                :on-error="handleAvatarError"
-              >
-                <el-button type="primary" plain>
-                  更改头像
-                </el-button>
-              </el-upload>
+              <input
+                ref="avatarInputRef"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="handleAvatarFileChange"
+              />
+              <el-button type="primary" plain @click="selectAvatarFile">
+                更改头像
+              </el-button>
             </div>
             
             <el-form-item label="姓名" prop="name">
@@ -42,14 +41,7 @@
               <el-input v-model="profileForm.email" disabled />
             </el-form-item>
             
-            <el-form-item label="个人简介" prop="bio">
-              <el-input
-                v-model="profileForm.bio"
-                type="textarea"
-                :rows="4"
-                placeholder="介绍一下你自己..."
-              />
-            </el-form-item>
+
             
             <el-form-item>
               <el-button
@@ -106,72 +98,62 @@
           </el-form>
         </el-tab-pane>
         
-        <el-tab-pane label="活动" name="activity">
-          <div class="activity-section">
-            <h3>最近评论</h3>
-            <div v-if="loading" class="loading-container">
-              <el-skeleton :rows="3" animated />
-            </div>
-            <div v-else-if="recentComments.length" class="comments-list">
-              <div
-                v-for="comment in recentComments"
-                :key="comment.id"
-                class="activity-item"
-              >
-                <div class="activity-content">
-                  <p>{{ comment.content }}</p>
-                  <router-link :to="`/blog/${comment.blogId}`" class="activity-link">
-                    在：{{ comment.blogTitle }}
-                  </router-link>
-                </div>
-                <span class="activity-date">{{ formatDate(comment.createdAt) }}</span>
-              </div>
-            </div>
-            <div v-else class="empty-state">
-              <p>暂无最近评论</p>
-            </div>
-          </div>
-          
-          <div class="activity-section">
-            <h3>喜欢的文章</h3>
-            <div v-if="loading" class="loading-container">
-              <el-skeleton :rows="3" animated />
-            </div>
-            <div v-else-if="likedPosts.length" class="liked-posts">
-              <div
-                v-for="post in likedPosts"
-                :key="post.id"
-                class="activity-item"
-              >
-                <router-link :to="`/blog/${post.id}`" class="activity-content">
-                  {{ post.title }}
-                </router-link>
-                <span class="activity-date">{{ formatDate(post.likedAt) }}</span>
-              </div>
-            </div>
-            <div v-else class="empty-state">
-              <p>暂无喜欢的文章</p>
-            </div>
-          </div>
-        </el-tab-pane>
+
       </el-tabs>
     </div>
+    
+    <!-- 头像裁剪对话框 -->
+    <el-dialog
+      v-model="cropDialogVisible"
+      title="裁剪头像"
+      width="600px"
+      :before-close="handleCropDialogClose"
+    >
+      <div class="crop-container">
+        <div class="crop-info">
+          <p>请按照 1:1 的比例裁剪图片作为头像</p>
+        </div>
+        <Cropper
+          ref="cropperRef"
+          :src="cropImageSrc"
+          :stencil-props="{
+            aspectRatio: 1
+          }"
+          class="cropper"
+        />
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleCropDialogClose">取消</el-button>
+          <el-button type="primary" @click="handleCropConfirm">确认裁剪</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import dayjs from 'dayjs'
+import { ref, reactive, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../../stores/user'
+import { userApi } from '../../api/user'
+import { Cropper } from 'vue-advanced-cropper'
+import 'vue-advanced-cropper/dist/style.css'
 
 const userStore = useUserStore()
 const activeTab = ref('profile')
 const profileFormRef = ref(null)
 const passwordFormRef = ref(null)
+const avatarInputRef = ref(null)
 const saving = ref(false)
 const changingPassword = ref(false)
-const loading = ref(false)
+
+// 头像裁剪相关
+const cropDialogVisible = ref(false)
+const cropImageSrc = ref('')
+const cropperRef = ref(null)
+const originalAvatarFile = ref(null)
+const avatarFile = ref(null)
 
 // Avatar fallback
 const avatarFallback = computed(() => {
@@ -182,7 +164,6 @@ const avatarFallback = computed(() => {
 const profileForm = reactive({
   name: userStore.user?.name || '',
   email: userStore.user?.email || '',
-  bio: userStore.user?.bio || '',
   avatar: ''
 })
 
@@ -190,9 +171,6 @@ const profileRules = {
   name: [
     { required: true, message: '请输入您的姓名', trigger: 'blur' },
     { min: 2, message: '姓名至少需要2个字符', trigger: 'blur' }
-  ],
-  bio: [
-    { max: 500, message: '个人简介不能超过500个字符', trigger: 'blur' }
   ]
 }
 
@@ -237,22 +215,176 @@ const passwordRules = {
   ]
 }
 
-// Activity data
-const recentComments = ref([])
-const likedPosts = ref([])
-
 // Methods
-const formatDate = (date) => {
-  return dayjs(date).format('MMM D, YYYY')
+
+// 头像相关方法
+const selectAvatarFile = () => {
+  if (avatarInputRef.value) {
+    avatarInputRef.value.click()
+  }
 }
 
-const handleAvatarSuccess = (response) => {
-  profileForm.avatar = response.url
-  ElMessage.success('头像上传成功')
+const handleAvatarFileChange = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
+  
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件！')
+    return false
+  }
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过 5MB！')
+    return false
+  }
+  
+  // 保存原始文件
+  originalAvatarFile.value = file
+  
+  // 读取文件并显示裁剪对话框
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    cropImageSrc.value = e.target.result
+    cropDialogVisible.value = true
+  }
+  reader.readAsDataURL(file)
+  
+  // 清空input值，以便可以重复选择同一文件
+  event.target.value = ''
 }
 
-const handleAvatarError = () => {
-  ElMessage.error('头像上传失败')
+// 裁剪相关方法
+const handleCropDialogClose = () => {
+  cropDialogVisible.value = false
+  cropImageSrc.value = ''
+  originalAvatarFile.value = null
+}
+
+const handleCropConfirm = async () => {
+  if (!cropperRef.value) {
+    ElMessage.error('裁剪器未初始化')
+    return
+  }
+  
+  try {
+    // 获取裁剪后的canvas
+    const { canvas } = cropperRef.value.getResult()
+    if (!canvas) {
+      ElMessage.error('裁剪失败，请重试')
+      return
+    }
+    
+    // 将canvas转换为blob
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        ElMessage.error('裁剪失败，请重试')
+        return
+      }
+      
+      // 创建新的File对象
+      const fileName = originalAvatarFile.value.name
+      const fileExtension = fileName.split('.').pop()
+      const newFileName = `avatar_${Date.now()}.${fileExtension}`
+      
+      avatarFile.value = new File([blob], newFileName, {
+        type: blob.type,
+        lastModified: Date.now()
+      })
+      
+      // 上传头像
+      await uploadAvatar()
+      
+      // 关闭对话框
+      cropDialogVisible.value = false
+      cropImageSrc.value = ''
+      originalAvatarFile.value = null
+      
+      ElMessage.success('头像裁剪完成')
+    }, 'image/jpeg', 0.9)
+  } catch (error) {
+    console.error('裁剪错误:', error)
+    ElMessage.error('裁剪失败，请重试')
+  }
+}
+
+// 根据文件扩展名获取Content-Type
+const getImageContentType = (filename) => {
+  const extension = filename.split('.').pop().toLowerCase()
+  switch (extension) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg"
+    case "png":
+      return "image/png"
+    case "gif":
+      return "image/gif"
+    case "webp":
+      return "image/webp"
+    case "bmp":
+      return "image/bmp"
+    case "svg":
+      return "image/svg+xml"
+    case "ico":
+      return "image/x-icon"
+    default:
+      return "application/octet-stream"
+  }
+}
+
+// 上传头像
+const uploadAvatar = async () => {
+  if (!avatarFile.value) {
+    ElMessage.error('没有选择头像文件')
+    return
+  }
+  
+  try {
+    ElMessage.info('正在获取上传地址...')
+    
+    // 调用API获取上传URL
+    const response = await userApi.updateAvatar({
+      fileName: avatarFile.value.name
+    })
+    
+    if (response.data.code !== 200 || !response.data.data) {
+      throw new Error('获取上传地址失败')
+    }
+    
+    const uploadUrl = response.data.data
+    
+    ElMessage.info('正在上传头像...')
+    
+    // 上传头像文件
+    const contentType = getImageContentType(avatarFile.value.name)
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: avatarFile.value,
+      headers: {
+        'Content-Type': contentType
+      }
+    })
+    
+    if (!uploadResponse.ok) {
+      throw new Error('头像上传失败')
+    }
+    
+    // 获取上传后的URL（去掉查询参数）
+    const avatarUrl = uploadUrl.split('?')[0]
+    
+    // 更新用户头像
+    profileForm.avatar = avatarUrl
+    if (userStore.user) {
+      userStore.user.avatar = avatarUrl
+    }
+    
+    ElMessage.success('头像上传成功')
+    
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error(error.message || '头像上传失败，请重试')
+  }
 }
 
 const handleProfileSubmit = async () => {
@@ -262,11 +394,21 @@ const handleProfileSubmit = async () => {
     await profileFormRef.value.validate()
     saving.value = true
     
-    await userStore.updateProfile(profileForm)
+    // 调用API更新用户信息
+    await userApi.updateUser({
+      name: profileForm.name,
+      id: userStore.user.id
+    })
+    
+    // 更新本地store中的用户信息
+    userStore.user.name = profileForm.name
+    
     ElMessage.success('个人资料更新成功')
   } catch (error) {
     if (error.message) {
       ElMessage.error(error.message)
+    } else {
+      ElMessage.error('更新失败，请重试')
     }
   } finally {
     saving.value = false
@@ -297,49 +439,7 @@ const handlePasswordSubmit = async () => {
   }
 }
 
-const fetchActivity = async () => {
-  loading.value = true
-  try {
-    // In a real app, these would be API calls
-    recentComments.value = [
-      {
-        id: 1,
-        content: 'Great article! Thanks for sharing.',
-        blogId: 1,
-        blogTitle: 'Getting Started with Vue 3',
-        createdAt: '2025-01-15T10:00:00Z'
-      },
-      {
-        id: 2,
-        content: 'This was very helpful.',
-        blogId: 2,
-        blogTitle: 'Understanding TypeScript',
-        createdAt: '2025-01-10T15:30:00Z'
-      }
-    ]
-    
-    likedPosts.value = [
-      {
-        id: 1,
-        title: 'Getting Started with Vue 3',
-        likedAt: '2025-01-16T08:00:00Z'
-      },
-      {
-        id: 2,
-        title: 'Understanding TypeScript',
-        likedAt: '2025-01-12T14:20:00Z'
-      }
-    ]
-  } catch (error) {
-    console.error('获取活动失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
 
-onMounted(() => {
-  fetchActivity()
-})
 </script>
 
 <style scoped>
@@ -360,22 +460,32 @@ onMounted(() => {
 h1 {
   font-size: 2rem;
   font-weight: 600;
-  color: #1e293b;
-}
-
-:deep(.dark-mode) h1 {
-  color: #f1f5f9;
+  color: var(--el-text-color-primary);
 }
 
 .profile-tabs {
-  background-color: white;
+  background-color: var(--el-bg-color);
   border-radius: 8px;
   padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow-light);
+  border: 1px solid var(--el-border-color);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
-:deep(.dark-mode) .profile-tabs {
-  background-color: #1e1e1e;
+/* 黑夜模式样式 */
+.dark-mode .profile-page {
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+}
+
+.dark-mode .profile-tabs {
+  background-color: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+  border-color: var(--el-border-color);
+}
+
+.dark-mode h1 {
+  color: var(--el-text-color-primary);
 }
 
 .avatar-upload {
@@ -386,75 +496,104 @@ h1 {
   margin-bottom: 2rem;
 }
 
-.activity-section {
-  margin-bottom: 2rem;
+/* 修复按钮文字颜色问题 */
+.avatar-upload .el-button {
+  color: #ffffff !important;
 }
 
-.activity-section h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #1e293b;
+.dark-mode .avatar-upload .el-button {
+  color: #ffffff !important;
 }
 
-:deep(.dark-mode) .activity-section h3 {
-  color: #f1f5f9;
+/* 头像裁剪对话框样式 */
+.crop-container {
+  width: 100%;
+  height: 400px;
 }
 
-.activity-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 1rem 0;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-:deep(.dark-mode) .activity-item {
-  border-bottom-color: #2d3748;
-}
-
-.activity-content {
-  flex: 1;
-  margin-right: 1rem;
-}
-
-.activity-content p {
-  margin: 0 0 0.5rem;
-  color: #334155;
-}
-
-:deep(.dark-mode) .activity-content p {
-  color: #e2e8f0;
-}
-
-.activity-link {
-  font-size: 0.875rem;
-  color: var(--el-color-primary);
-  text-decoration: none;
-}
-
-.activity-link:hover {
-  text-decoration: underline;
-}
-
-.activity-date {
-  font-size: 0.875rem;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-:deep(.dark-mode) .activity-date {
-  color: #94a3b8;
-}
-
-.empty-state {
+.crop-info {
+  margin-bottom: 15px;
   text-align: center;
-  padding: 2rem;
-  color: #64748b;
 }
 
-:deep(.dark-mode) .empty-state {
-  color: #94a3b8;
+.crop-info p {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.cropper {
+  width: 100%;
+  height: 350px;
+}
+
+/* 黑夜模式下的头像裁剪对话框样式 */
+.dark-mode .crop-container {
+  background-color: var(--el-bg-color);
+}
+
+.dark-mode .crop-info p {
+  color: var(--el-text-color-secondary);
+}
+
+.dark-mode .cropper {
+  background-color: var(--el-fill-color-dark);
+  border: 1px solid var(--el-border-color);
+}
+
+/* Element Plus 组件在黑夜模式下的样式 */
+.dark-mode :deep(.el-dialog) {
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+}
+
+.dark-mode :deep(.el-dialog__header) {
+  background-color: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
+  color: var(--el-text-color-primary);
+}
+
+.dark-mode :deep(.el-dialog__body) {
+  background-color: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+}
+
+.dark-mode :deep(.el-form-item__label) {
+  color: var(--el-text-color-primary);
+}
+
+.dark-mode :deep(.el-input__wrapper) {
+  background-color: var(--el-fill-color);
+  border-color: var(--el-border-color);
+}
+
+.dark-mode :deep(.el-input__inner) {
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
+}
+
+.dark-mode :deep(.el-input__inner::placeholder) {
+  color: var(--el-text-color-placeholder);
+}
+
+.dark-mode :deep(.el-tabs__header) {
+  background-color: var(--el-bg-color);
+}
+
+.dark-mode :deep(.el-tabs__nav-wrap::after) {
+  background-color: var(--el-border-color);
+}
+
+.dark-mode :deep(.el-tabs__item) {
+  color: var(--el-text-color-regular);
+}
+
+.dark-mode :deep(.el-tabs__item.is-active) {
+  color: var(--el-color-primary);
+}
+
+.dark-mode :deep(.el-tabs__active-bar) {
+  background-color: var(--el-color-primary);
 }
 
 @media (max-width: 768px) {
@@ -462,14 +601,30 @@ h1 {
     padding: 1rem;
   }
   
-  .activity-item {
-    flex-direction: column;
-    gap: 0.5rem;
+  .crop-container {
+    height: 300px;
   }
   
-  .activity-date {
-    font-size: 0.75rem;
+  .cropper {
+    height: 250px;
+  }
+  
+  /* 移动端黑夜模式样式 */
+  .dark-mode .profile-tabs {
+    padding: 1rem;
+    background-color: var(--el-bg-color);
+    border-color: var(--el-border-color);
+  }
+  
+  .dark-mode .crop-container {
+    height: 300px;
+    background-color: var(--el-bg-color);
+  }
+  
+  .dark-mode .cropper {
+    height: 250px;
+    background-color: var(--el-fill-color-dark);
+    border-color: var(--el-border-color);
   }
 }
 </style>
-```

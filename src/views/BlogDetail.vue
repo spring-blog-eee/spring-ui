@@ -39,6 +39,14 @@
                 {{ blog.liked ? '已赞' : '点赞' }} ({{ blog.likes }})
               </el-button>
               <el-button
+                v-if="canEditBlog"
+                type="warning"
+                @click="handleEditBlog"
+              >
+                <el-icon><Edit /></el-icon>
+                编辑文章
+              </el-button>
+              <el-button
                 v-if="canDeleteBlog"
                 type="danger"
                 @click="handleDeleteBlog"
@@ -63,7 +71,7 @@
         </div>
 
         <!-- Blog content -->
-        <div class="blog-content markdown-body" v-html="blog.content"></div>
+        <div class="blog-content markdown-body" v-html="renderedContent"></div>
 
         <!-- Comments section -->
         <div class="comments-section">
@@ -162,8 +170,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Top, Delete } from '@element-plus/icons-vue'
+import { Top, Delete, Edit } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import MarkdownIt from 'markdown-it'
 import { useBlogStore } from '../stores/blog'
 import { useCommentStore } from '../stores/comment'
 import { useUserStore } from '../stores/user'
@@ -190,11 +199,24 @@ const comments = computed(() => commentStore.comments)
 const totalComments = computed(() => commentStore.pagination.total)
 const totalPages = computed(() => Math.ceil(totalComments.value / pageSize.value))
 
+// 渲染markdown内容
+const renderedContent = computed(() => {
+  if (!blog.value || !blog.value.content) {
+    return '<p>内容加载中...</p>'
+  }
+  
+  const md = new MarkdownIt({
+    html: false,
+    linkify: true,
+    typographer: true
+  })
+  
+  return md.render(blog.value.content)
+})
+
 // Check if user can delete blog
-const canDeleteBlog = computed(() => 
-{
-  if (!userStore.isLoggedIn || !userStore.user || !blog.value) 
-  {
+const canDeleteBlog = computed(() => {
+  if (!userStore.isLoggedIn || !blog.value) {
     return false
   }
   
@@ -205,6 +227,23 @@ const canDeleteBlog = computed(() =>
   }
   
   // Blog author can delete their own blog
+  if (blog.value.author && blog.value.author.id === userStore.user.id) 
+  {
+    return true
+  }
+  
+  return false
+})
+
+const canEditBlog = computed(() => {
+  if (!userStore.isLoggedIn || !blog.value) 
+  {
+    return false
+  }
+
+  console.log("canEditBlog:", blog.value)
+  
+  // Only blog author can edit their own blog
   if (blog.value.author && blog.value.author.id === userStore.user.id) 
   {
     return true
@@ -281,6 +320,16 @@ const handleLike = async () => {
   } catch (err) {
     ElMessage.error('操作失败，请重试')
   }
+}
+
+const handleEditBlog = () => {
+  if (!canEditBlog.value) {
+    ElMessage.error('没有权限编辑此文章')
+    return
+  }
+  
+  // 跳转到编辑页面
+  router.push(`/admin/blog/edit/${route.params.id}`)
 }
 
 const handleDeleteBlog = async () => {

@@ -28,5 +28,9 @@ export const blogApi = {
   deleteBlog(params)
   {
     return axios.post(prefix + '/blog/delete', params)
-  }
+  },
+  updateBlog(params)
+  {
+    return axios.post(prefix + '/blog/update', params)
+  },
 }

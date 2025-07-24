@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { blogApi } from '../api/blog'
-import MarkdownIt from 'markdown-it'
 
 export const useBlogStore = defineStore('blog', () => {
   const blogs = ref([])
@@ -16,8 +15,10 @@ export const useBlogStore = defineStore('blog', () => {
   const tags = ref([])
 
   // Get all blogs with pagination
-  async function fetchBlogs(params = {}) {
-    try {
+  async function fetchBlogs(params = {}) 
+  {
+    try
+     {
       loading.value = true
       error.value = null
       const response = await blogApi.getBlogList({
@@ -29,6 +30,8 @@ export const useBlogStore = defineStore('blog', () => {
       if (response.data && response.data.code === 200) {
         const blogData = response.data.data || []
         
+        console.log("blogData:", blogData)
+
         // 处理博客数据，解析tags字段并转换为组件期望的格式
         const processedBlogs = blogData.map(blog => ({
           ...blog,
@@ -38,6 +41,7 @@ export const useBlogStore = defineStore('blog', () => {
           excerpt: blog.excerpt || '暂无摘要...',
           tags: JSON.parse(blog.tags),
           author: {
+            id: blog.userId,
             name: blog.nickname || '匿名用户',
             avatar: blog.authorAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
           },
@@ -106,22 +110,15 @@ export const useBlogStore = defineStore('blog', () => {
         const markdownResponse = await fetch(blogData.contentUrl)
         const markdownContent = await markdownResponse.text()
         
-        // 使用 markdown-it 渲染 markdown 内容
-        const md = new MarkdownIt({  
-          html: false,
-          linkify: true,
-          typographer: true
-        })
-        const renderedContent = md.render(markdownContent)
-        
         // 构建完整的博客对象
         currentBlog.value = {
           id: blogData.id,
           title: blogData.title,
-          content: renderedContent,
+          content: markdownContent, // 保存原始markdown内容，不在这里渲染
           cover: blogData.imgUrl || '/default-cover.jpg',
           tags: parsedTags,
           author: {
+            id: blogData.userId,
             name: blogData.nickname || '匿名用户',
             avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
           },
@@ -145,6 +142,7 @@ export const useBlogStore = defineStore('blog', () => {
           cover: '/default-cover.jpg',
           tags: [],
           author: {
+            id: null,
             name: '匿名用户',
             avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
           },
@@ -165,6 +163,7 @@ export const useBlogStore = defineStore('blog', () => {
         cover: '/default-cover.jpg',
         tags: [],
         author: {
+          id: null,
           name: '匿名用户',
           avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
         },
