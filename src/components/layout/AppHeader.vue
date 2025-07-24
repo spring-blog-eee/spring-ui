@@ -31,7 +31,7 @@
         <template v-if="userStore.isLoggedIn">
           <el-dropdown trigger="click">
             <div class="user-avatar">
-              <el-avatar :size="32" :src="userStore.user?.avatar || ''">
+              <el-avatar :size="32" :src="userAvatar">
                 {{ userAvatarFallback }}
               </el-avatar>
             </div>
@@ -86,11 +86,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { useThemeStore } from '../../stores/theme'
 import { ElMessage } from 'element-plus'
+import { getUserAvatarUrl } from '../../utils/avatar'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -99,11 +100,28 @@ const themeStore = useThemeStore()
 const scrolled = ref(false)
 const isMobileMenuOpen = ref(false)
 const debugMode = ref(false)
+const userAvatar = ref('')
 
 const userAvatarFallback = computed(() => {
   if (!userStore.user) return ''
   return userStore.user.name ? userStore.user.name.charAt(0).toUpperCase() : 'U'
 })
+
+// 监听用户变化，更新头像
+watch(() => userStore.user, async (newUser) => {
+  if (newUser && newUser.id) {
+    userAvatar.value = await getUserAvatarUrl(newUser.id, newUser.avatar)
+  } else {
+    userAvatar.value = ''
+  }
+}, { immediate: true, deep: true })
+
+// 监听用户头像变化，实时更新
+watch(() => userStore.user?.avatar, async (newAvatar) => {
+  if (userStore.user && userStore.user.id) {
+    userAvatar.value = await getUserAvatarUrl(userStore.user.id, newAvatar)
+  }
+}, { immediate: false })
 
 // Handle scroll event for header style
 const handleScroll = () => {

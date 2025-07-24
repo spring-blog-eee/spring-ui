@@ -19,7 +19,7 @@
         
         <div class="blog-meta">
           <div class="author-info">
-            <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
+            <img :src="authorAvatar" :alt="post.author.name" class="author-avatar" />
             <span class="author-name">{{ post.author.name }}</span>
           </div>
           
@@ -48,12 +48,13 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue'
+import { defineProps, computed, watch, ref } from 'vue'
 import { Top, ChatDotRound, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { useBlogStore } from '../../stores/blog'
 import { useUserStore } from '../../stores/user'
+import { getUserAvatarUrl } from '../../utils/avatar'
 
 // Define props
 const props = defineProps({
@@ -68,6 +69,16 @@ const emit = defineEmits(['like-updated'])
 // Stores
 const blogStore = useBlogStore()
 const userStore = useUserStore()
+
+// Avatar handling
+const authorAvatar = ref('')
+
+// Watch for post changes to update avatar
+watch(() => props.post, async (newPost) => {
+  if (newPost && newPost.author) {
+    authorAvatar.value = await getUserAvatarUrl(newPost.author.id, newPost.author.avatar)
+  }
+}, { immediate: true })
 
 // Format date
 const formatDate = (date) => {

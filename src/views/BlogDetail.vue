@@ -23,6 +23,7 @@
         <div class="blog-header">
           <div class="blog-meta">
             <div class="author-info">
+              <img :src="blog.author.avatar" :alt="blog.author.name" class="author-avatar" />
               <div class="author-details">
                 <span class="author-name">{{ blog.author.name }}</span>
                 <span class="publish-date">{{ formatDate(blog.publishedAt) }}</span>
@@ -176,6 +177,7 @@ import MarkdownIt from 'markdown-it'
 import { useBlogStore } from '../stores/blog'
 import { useCommentStore } from '../stores/comment'
 import { useUserStore } from '../stores/user'
+import { getUserAvatarUrl } from '../utils/avatar'
 import { blogApi } from '../api/blog'
 
 const route = useRoute()
@@ -588,6 +590,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .author-details {

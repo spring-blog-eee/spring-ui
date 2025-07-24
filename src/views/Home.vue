@@ -71,6 +71,7 @@ import { useUserStore } from '../stores/user'
 import { useBlogStore } from '../stores/blog'
 import BlogPostCard from '../components/blog/BlogPostCard.vue'
 import { blogApi } from '../api/blog'
+import { getUserAvatarUrl } from '../utils/avatar'
 
 const userStore = useUserStore()
 const blogStore = useBlogStore()
@@ -103,7 +104,7 @@ const loadFeaturedPosts = async () => {
           tags: JSON.parse(blog.tags || '[]'),
           author: {
             name: blog.nickname || '匿名用户',
-            avatar: blog.authorAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+            avatar: await getUserAvatarUrl(blog.userId, blog.authorAvatar)
           },
           publishedAt: blog.creationTime,
           createdAt: blog.creationTime,

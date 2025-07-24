@@ -17,6 +17,6 @@ export const userApi = {
   {
     const token = localStorage.getItem('token')
     const headers = token ? { Authorization: token } : {}
-    return axios.post('/api/user/update-avatar', params, { headers })
+    return axios.post('/api/user/avatar', params, { headers })
   },
 }

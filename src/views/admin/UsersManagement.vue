@@ -85,10 +85,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { useUserStore } from '../../stores/user'
+import { getUserAvatarUrl } from '../../utils/avatar'
 
 const userStore = useUserStore()
 
@@ -115,7 +116,16 @@ const fetchUsers = async () => {
       search: searchQuery.value,
       role: filterRole.value
     })
-    users.value = response.users
+    
+    // 处理用户头像
+    const usersWithAvatars = await Promise.all(response.users.map(async user => {
+      return {
+        ...user,
+        avatar: await getUserAvatarUrl(user.id, user.avatar)
+      }
+    }))
+    
+    users.value = usersWithAvatars
     total.value = response.total
   } catch (error) {
     ElMessage.error('Failed to fetch users')

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { blogApi } from '../api/blog'
+import { getUserAvatarUrl } from '../utils/avatar'
 
 export const useBlogStore = defineStore('blog', () => {
   const blogs = ref([])
@@ -33,7 +34,7 @@ export const useBlogStore = defineStore('blog', () => {
         console.log("blogData:", blogData)
 
         // 处理博客数据，解析tags字段并转换为组件期望的格式
-        const processedBlogs = blogData.map(blog => ({
+        const processedBlogs = await Promise.all(blogData.map(async blog => ({
           ...blog,
           id: blog.id,
           title: blog.title,
@@ -43,7 +44,7 @@ export const useBlogStore = defineStore('blog', () => {
           author: {
             id: blog.userId,
             name: blog.nickname || '匿名用户',
-            avatar: blog.authorAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+            avatar: await getUserAvatarUrl(blog.userId, blog.authorAvatar)
           },
           publishedAt: blog.creationTime,
           createdAt: blog.creationTime,
@@ -51,7 +52,7 @@ export const useBlogStore = defineStore('blog', () => {
           likes: blog.likes || 0, // 添加点赞数字段
           comments: blog.comments || 0, // 添加评论数字段
           // 保留原始数据
-        }))
+        })))
         
         // 按置顶状态排序：置顶文章在前，然后按创建时间倒序
         blogs.value = processedBlogs.sort((a, b) => {
@@ -120,7 +121,7 @@ export const useBlogStore = defineStore('blog', () => {
           author: {
             id: blogData.userId,
             name: blogData.nickname || '匿名用户',
-            avatar: 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+            avatar: await getUserAvatarUrl(blogData.userId, blogData.authorAvatar)
           },
           publishedAt: blogData.creationTime || new Date().toISOString(),
           createdAt: blogData.creationTime || new Date().toISOString(),

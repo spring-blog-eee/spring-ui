@@ -17,7 +17,7 @@
             <div class="avatar-upload">
               <el-avatar
                 :size="100"
-                :src="profileForm.avatar || userStore.user?.avatar"
+                :src="profileForm.avatar || currentAvatar"
               >
                 {{ avatarFallback }}
               </el-avatar>
@@ -133,12 +133,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../../stores/user'
 import { userApi } from '../../api/user'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
+import { getUserAvatarUrl } from '../../utils/avatar'
 
 const userStore = useUserStore()
 const activeTab = ref('profile')
@@ -154,11 +155,21 @@ const cropImageSrc = ref('')
 const cropperRef = ref(null)
 const originalAvatarFile = ref(null)
 const avatarFile = ref(null)
+const currentAvatar = ref('')
 
 // Avatar fallback
 const avatarFallback = computed(() => {
   return userStore.user?.name ? userStore.user.name.charAt(0).toUpperCase() : '用户'
 })
+
+// 监听用户变化，更新头像
+watch(() => userStore.user, async (newUser) => {
+  if (newUser && newUser.id) {
+    currentAvatar.value = await getUserAvatarUrl(newUser.id, newUser.avatar)
+  } else {
+    currentAvatar.value = ''
+  }
+}, { immediate: true })
 
 // Profile form
 const profileForm = reactive({
@@ -345,7 +356,9 @@ const uploadAvatar = async () => {
     
     // 调用API获取上传URL
     const response = await userApi.updateAvatar({
-      fileName: avatarFile.value.name
+      avatar: avatarFile.value.name,
+      username: userStore.user?.username,
+      userId: userStore.user?.id
     })
     
     if (response.data.code !== 200 || !response.data.data) {
@@ -377,6 +390,8 @@ const uploadAvatar = async () => {
     profileForm.avatar = avatarUrl
     if (userStore.user) {
       userStore.user.avatar = avatarUrl
+      // 重新获取头像URL
+      currentAvatar.value = await getUserAvatarUrl(userStore.user.id, avatarUrl)
     }
     
     ElMessage.success('头像上传成功')

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { commentApi } from '../api/comment'
+import { getUserAvatarUrl } from '../utils/avatar'
 
 export const useCommentStore = defineStore('comment', () => {
   const comments = ref([])
@@ -26,18 +27,18 @@ export const useCommentStore = defineStore('comment', () => {
         const commentData = response.data.data || []
         
         // 处理评论数据，转换为组件期望的格式
-        comments.value = commentData.map(comment => ({
+        comments.value = await Promise.all(commentData.map(async comment => ({
           id: comment.id,
           content: comment.content,
           author: {
             id: comment.userId,
             name: comment.nickname || '匿名用户',
-            avatar: comment.userAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+            avatar: await getUserAvatarUrl(comment.userId, comment.userAvatar)
           },
           createdAt: comment.creationTime,
           blogId: comment.blogId,
           isTop: comment.type === 1 // type为1表示置顶
-        }))
+        })))
         
         // Sort comments: pinned comments first
         comments.value.sort((a, b) => {
@@ -132,13 +133,13 @@ export const useCommentStore = defineStore('comment', () => {
         const commentData = response.data.data || []
         
         // 处理评论数据，转换为组件期望的格式
-        const processedComments = commentData.map(comment => ({
+        const processedComments = await Promise.all(commentData.map(async comment => ({
           id: comment.id,
           content: comment.content,
           author: {
             id: comment.userId,
             name: comment.nickname || '匿名用户',
-            avatar: comment.userAvatar || 'https://img-bsy.txrpic.com/Element/00/88/63/12/549f4792_E886312_4b2c4691XZ.png?imageMogr2/quality/90/thumbnail/320x%3E'
+            avatar: await getUserAvatarUrl(comment.userId, comment.userAvatar)
           },
           createdAt: comment.creationTime,
           blogId: comment.blogId,
@@ -146,7 +147,7 @@ export const useCommentStore = defineStore('comment', () => {
           blogAuthorId: comment.blogAuthorId, // 博客作者ID，用于权限检查
           status: comment.status || 'approved',
           isTop: comment.isTop || false
-        }))
+        })))
         
         return {
           comments: processedComments,
