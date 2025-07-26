@@ -39,5 +39,13 @@ export const aiApi = {
     {
         return axios.post('/llm/rag/update', params)
     },
+    getUploadFileUrl(params)
+    {
+        return axios.post('/llm/rag/get-urls', params)
+    },
+    loadFileIntoKnowledge(params)
+    {
+        return axios.post('/llm/rag/finish-upload', params)
+    }
 
 }

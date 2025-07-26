@@ -35,17 +35,19 @@
         >
           <div class="kb-card-header">
             <div class="kb-actions">
+              <button class="action-btn add-file-btn" @click="addFilesToKnowledge(kb)">
+                 <el-icon><Plus /></el-icon>
+               </button>
               <button class="action-btn edit-btn" @click="editKnowledgeBase(kb)">
                  <el-icon><Edit /></el-icon>
                </button>
-               <button class="action-btn delete-btn" @click="deleteKnowledgeBase(kb.id)">
+               <button class="action-btn delete-btn" @click="deleteKnowledgeBase(kb)">
                  <el-icon><Delete /></el-icon>
                </button>
             </div>
           </div>
           <div class="kb-card-body">
             <h3 class="kb-title">{{ kb.title }}</h3>
-            <p class="kb-collection-name">集合名称: {{ kb.collectionName }}</p>
             <p class="kb-description">{{ kb.description || '暂无描述' }}</p>
             <div class="kb-meta">
               <span class="kb-created">{{ formatDate(kb.creationTime) }}</span>
@@ -86,7 +88,7 @@
                 class="form-input"
               />
             </div>
-            <div class="form-group">
+            <!-- <div class="form-group">
               <label for="kb-collection-name">集合名称</label>
               <input 
                 id="kb-collection-name"
@@ -95,7 +97,7 @@
                 placeholder="请输入集合名称"
                 class="form-input"
               />
-            </div>
+            </div> -->
             <div class="form-group">
               <label for="kb-description">描述</label>
               <textarea 
@@ -108,6 +110,30 @@
             </div>
           </div>
 
+
+
+        </div>
+
+        <div class="dialog-footer">
+          <button class="cancel-btn" @click="closeDialog">取消</button>
+          <button class="save-btn" @click="saveKnowledgeBase" :disabled="!canSave">
+            {{ isEditing ? '保存' : '创建' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加文件对话框 -->
+    <div v-if="showAddFileDialog" class="dialog-overlay" @click="closeAddFileDialog">
+      <div class="dialog-content" @click.stop>
+        <div class="dialog-header">
+          <h2>为 "{{ currentKnowledgeBase?.title }}" 添加文件</h2>
+          <button class="close-btn" @click="closeAddFileDialog">
+             <el-icon><Close /></el-icon>
+           </button>
+        </div>
+        
+        <div class="dialog-body">
           <!-- 数据源选择 -->
           <div class="form-section">
             <h3>数据源</h3>
@@ -194,13 +220,12 @@
               </div>
             </div>
           </div>
-
         </div>
 
         <div class="dialog-footer">
-          <button class="cancel-btn" @click="closeDialog">取消</button>
-          <button class="save-btn" @click="saveKnowledgeBase" :disabled="!canSave">
-            {{ isEditing ? '保存' : '创建' }}
+          <button class="cancel-btn" @click="closeAddFileDialog">取消</button>
+          <button class="save-btn" @click="uploadFilesToKnowledge" :disabled="!hasFilesToUpload">
+            上传文件
           </button>
         </div>
       </div>
@@ -211,6 +236,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../../stores/user.js'
 import {
   Plus,
   Search,
@@ -224,12 +250,15 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 响应式数据
 const searchQuery = ref('')
 const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
+const showAddFileDialog = ref(false)
 const newUrl = ref('')
+const currentKnowledgeBase = ref(null)
 
 // 知识库数据
 const knowledgeBases = ref([])
@@ -252,6 +281,7 @@ const currentKB = ref({
 const isEditing = computed(() => showEditDialog.value)
 
 const filteredKnowledgeBases = computed(() => {
+  console.log('knowledgeBases.value in filter', knowledgeBases.value)
   let filtered = knowledgeBases.value
   
   if (searchQuery.value) {
@@ -267,21 +297,35 @@ const filteredKnowledgeBases = computed(() => {
 
 
 const canSave = computed(() => {
-  const hasBasicInfo = currentKB.value.title.trim() && currentKB.value.collectionName.trim()
-  const hasDataSource = 
-    (currentKB.value.sourceType === 'file' && currentKB.value.files.length > 0) ||
-    (currentKB.value.sourceType === 'url' && currentKB.value.urls.length > 0)
-  return hasBasicInfo && hasDataSource
+  const hasBasicInfo = currentKB.value.title.trim()
+  return hasBasicInfo
+})
+
+const hasFilesToUpload = computed(() => {
+  return (currentKB.value.files && currentKB.value.files.length > 0) || 
+         (currentKB.value.urls && currentKB.value.urls.length > 0)
 })
 
 // 方法
 
 const formatDate = (date) => {
+  // 处理无效日期
+  if (!date) return '未知时间'
+  
+  // 如果是字符串，转换为 Date 对象
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  
+  // 检查日期是否有效
+  if (isNaN(dateObj.getTime())) {
+    console.warn('Invalid date value:', date)
+    return '无效日期'
+  }
+  
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).format(date)
+  }).format(dateObj)
 }
 
 const formatFileSize = (bytes) => {
@@ -318,6 +362,11 @@ const removeUrl = (index) => {
   currentKB.value.urls.splice(index, 1)
 }
 
+const addFilesToKnowledge = (kb) => {
+  currentKnowledgeBase.value = kb
+  showAddFileDialog.value = true
+}
+
 const isValidUrl = (url) => {
   if (!url) return false
   try {
@@ -338,7 +387,10 @@ const editKnowledgeBase = (kb) => {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiApi } from '../../api/ai.js'
 
-const deleteKnowledgeBase = (id) => {
+// 从aiApi中解构出需要的方法
+const { getKnowledgeList, createKnowledge, updateKnowledge, deleteKnowledge, getUploadFileUrl, loadFileIntoKnowledge } = aiApi
+
+const deleteKnowledgeBase = (kb) => {
   ElMessageBox.confirm('确定要删除这个知识库吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -346,7 +398,11 @@ const deleteKnowledgeBase = (id) => {
   })
   .then(async () => {
     try {
-      await deleteKnowledge({ id });
+      await deleteKnowledge({ 
+        id: kb.id,
+        title: kb.title,
+        collectionName: kb.collectionName
+      });
       ElMessage.success('删除成功');
       fetchKnowledgeBases(); // 重新获取列表
     } catch (error) {
@@ -362,6 +418,138 @@ const closeDialog = () => {
   showCreateDialog.value = false
   showEditDialog.value = false
   resetCurrentKB()
+}
+
+const closeAddFileDialog = () => {
+  showAddFileDialog.value = false
+  currentKnowledgeBase.value = null
+  // 重置文件相关状态
+  currentKB.value.files = []
+  currentKB.value.urls = []
+  currentKB.value.sourceType = 'file'
+  newUrl.value = ''
+}
+
+const uploadFilesToKnowledge = async () => {
+  try {
+    // 显示上传进度提示
+    const loadingMessage = ElMessage({
+      message: '正在准备上传文件...',
+      type: 'info',
+      duration: 0 // 不自动关闭
+    })
+    
+    // 如果有文件需要上传
+    if (currentKB.value.files && currentKB.value.files.length > 0) {
+      // 准备所有文件信息的列表
+      const fileInfoList = currentKB.value.files.map(file => ({
+        name: file.name,
+        contentType: file.type || 'application/octet-stream',
+        userId: getCurrentUserId()
+      }))
+      
+      // 批量请求上传URL
+      const urlParams = fileInfoList
+      
+      loadingMessage.close()
+      const urlMessage = ElMessage({
+        message: '正在获取上传地址...',
+        type: 'info',
+        duration: 0
+      })
+      
+      const urlResponse = await getUploadFileUrl(urlParams)
+      urlMessage.close()
+      
+      if (urlResponse.data && urlResponse.data.code === 200) {
+        const uploadUrls = urlResponse.data.data // 应该是一个URL数组
+        
+        // 逐个上传文件
+         for (let i = 0; i < currentKB.value.files.length; i++) {
+           const file = currentKB.value.files[i]
+           const uploadUrl = uploadUrls[i]
+           
+           const progressMessage = ElMessage({
+             message: `正在上传文件 ${i + 1}/${currentKB.value.files.length}: ${file.name}`,
+             type: 'info',
+             duration: 0
+           })
+           
+           // 使用获取到的URL上传文件
+           const uploadResponse = await fetch(uploadUrl, {
+             method: 'PUT',
+             body: file,
+             headers: {
+               'Content-Type': file.type || 'application/octet-stream'
+             }
+           })
+           
+           progressMessage.close()
+           
+           if (!uploadResponse.ok) {
+             throw new Error(`文件 ${file.name} 上传失败: ${uploadResponse.statusText}`)
+           }
+         }
+       } else {
+         throw new Error('批量获取上传URL失败')
+       }
+    }
+    
+    // 准备载入知识库的参数
+    const loadParams = {
+      id: currentKnowledgeBase.value.id,
+      title: currentKnowledgeBase.value.title,
+      collectionName: currentKnowledgeBase.value.collectionName,
+      description: currentKnowledgeBase.value.description,
+      userId: getCurrentUserId(),
+      creationTime: currentKnowledgeBase.value.creationTime,
+      files: []
+    }
+    
+    // 添加文件信息
+    if (currentKB.value.files && currentKB.value.files.length > 0) {
+      loadParams.files = currentKB.value.files.map(file => ({
+        name: file.name,
+        contentType: file.type || 'application/octet-stream',
+        userId: getCurrentUserId()
+      }))
+    }
+    
+    // 添加URL信息
+    if (currentKB.value.urls && currentKB.value.urls.length > 0) {
+      const urlFiles = currentKB.value.urls.map(url => ({
+        url: url,
+        userId: getCurrentUserId()
+      }))
+      loadParams.files = [...(loadParams.files || []), ...urlFiles]
+    }
+    
+    // 调用载入知识库接口
+    const loadMessage = ElMessage({
+      message: '正在载入知识库...',
+      type: 'info',
+      duration: 0
+    })
+    
+    const loadResponse = await loadFileIntoKnowledge(loadParams)
+    loadMessage.close()
+    
+    if (loadResponse.data && loadResponse.data.code === 200) {
+      ElMessage({
+        message: loadResponse.data.data || '文件已成功载入知识库！',
+        type: 'success',
+        duration: 2000
+      })
+    } else {
+      throw new Error(loadResponse.data?.message || '载入知识库失败')
+    }
+    
+    closeAddFileDialog()
+    
+  } catch (error) {
+    console.error('文件上传失败:', error)
+    ElMessage.error('文件上传失败: ' + error.message)
+  }
 }
 
 const resetCurrentKB = () => {
@@ -405,17 +593,19 @@ const saveKnowledgeBase = async () => {
 
 // 获取当前用户ID的辅助函数
 const getCurrentUserId = () => {
-  // 这里应该从用户状态管理或本地存储中获取用户ID
-  // 示例：从localStorage获取
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-  return userInfo.id || null
+  return userStore.user?.id || null
 }
 
 // 获取知识库列表
 const fetchKnowledgeBases = async () => {
   try {
-    const response = await getKnowledgeList();
-    knowledgeBases.value = response.data;
+    const params = {
+      userId: getCurrentUserId()
+    };
+    const response = await getKnowledgeList(params);
+    if (response.data && response.data.code === 200 && response.data.data) {
+      knowledgeBases.value = response.data.data;
+    }
   } catch (error) {
     ElMessage.error('获取知识库列表失败：' + error.message);
   }
@@ -600,6 +790,15 @@ onMounted(() => {
 
 .delete-btn:hover {
   background-color: #f5c6cb;
+}
+
+.add-file-btn {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.add-file-btn:hover {
+  background-color: #c3e6cb;
 }
 
 .kb-card-body {
@@ -789,11 +988,18 @@ onMounted(() => {
   border-color: #007bff;
 }
 
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .upload-placeholder .upload-icon {
   font-size: 48px;
   color: #ccc;
   margin-bottom: 15px;
-  display: block;
+  display: flex;
+  justify-content: center;
 }
 
 .upload-link {
@@ -824,12 +1030,17 @@ onMounted(() => {
   background-color: #f8f9fa;
   border-radius: 6px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .file-name,
 .url-text {
   flex-grow: 1;
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .file-size {
@@ -846,6 +1057,7 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .url-input-group {

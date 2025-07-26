@@ -4,7 +4,7 @@
       <div class="footer-content">
         <div class="footer-logo">
           <h2>SpringBlog</h2>
-          <p>eee的个人博客，分享技术与生活</p>
+          <p>一个专注于编程学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
         </div>
         
         <div class="footer-links">

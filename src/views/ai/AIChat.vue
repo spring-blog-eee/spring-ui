@@ -40,9 +40,11 @@
             <label for="kb-dropdown">选择知识库</label>
             <button class="manage-kb-button" @click="goToKnowledgeBaseManager" :disabled="isFunctionDisabled">管理知识库</button>
           </div>
-          <select id="kb-dropdown">
-            <option>个人知识库</option>
-            <option>公共知识库</option>
+          <select id="kb-dropdown" v-model="selectedKnowledge">
+            <option value="">不使用知识库</option>
+            <option v-for="knowledge in knowledgeList" :key="knowledge.id" :value="knowledge.id">
+              {{ knowledge.title }}
+            </option>
           </select>
         </div>
       </div>
@@ -158,6 +160,10 @@ const isAiResponding = ref(false);
 const isWebSearchEnabled = ref(false);
 const isToolCallEnabled = ref(false);
 const isUserAtBottom = ref(true); // 用户是否在底部
+const knowledgeList = ref([]); // 知识库列表
+const selectedKnowledge = ref(''); // 选中的知识库
+// 管理正在进行的流式响应
+const activeStreams = ref(new Map()); // conversationId -> { reader, decoder, accumulatedContent, aiMessageIndex, abortController }
 
 // 初始化markdown渲染器
 const md = new MarkdownIt({
@@ -247,11 +253,12 @@ const startNewConversation = async () => {
   try {
     isStartingNewChat.value = true;
     
-    // 重置对话状态
+    // 重置当前对话的UI状态（不影响后台流式响应）
     currentConversationId.value = '';
     messages.value = [];
     userInput.value = '';
     loading.value = false;
+    isAiResponding.value = false;
     
     // 滚动到顶部
     await scrollToBottom();
@@ -285,6 +292,37 @@ const selectConversation = async (conversation) => {
     } else {
       messages.value = [];
     }
+    
+    // 检查是否有正在进行的流式响应需要恢复
+    const activeStream = activeStreams.value.get(conversationId);
+    if (activeStream && activeStream.isActive) {
+      // 恢复流式响应状态
+      isAiResponding.value = true;
+      loading.value = true;
+      
+      // 检查是否需要添加或更新AI消息
+      if (activeStream.aiMessageIndex === -1 || activeStream.aiMessageIndex >= messages.value.length) {
+        // 添加新的AI消息
+        messages.value.push({
+          type: 'assistant',
+          content: activeStream.accumulatedContent,
+          timestamp: new Date()
+        });
+        activeStream.aiMessageIndex = messages.value.length - 1;
+      } else if (activeStream.aiMessageIndex >= 0 && activeStream.aiMessageIndex < messages.value.length) {
+        // 更新现有消息内容
+        messages.value[activeStream.aiMessageIndex].content = activeStream.accumulatedContent;
+      }
+      
+      console.log(`恢复对话 ${conversationId} 的流式响应，消息索引: ${activeStream.aiMessageIndex}`);
+    } else {
+      // 确保没有活跃流式响应时清理UI状态
+      isAiResponding.value = false;
+      loading.value = false;
+    }
+    
+    // 滚动到底部显示最新消息
+    await scrollToBottom();
   } catch (error) {
     console.error('获取对话消息历史失败:', error);
     messages.value = [];
@@ -397,6 +435,21 @@ const getConversationHistory = async () => {
   }
 };
 
+// 获取知识库列表
+const getKnowledgeList = async () => {
+  try {
+    const params = {
+      userId: userStore.user?.id || 0
+    };
+    const result = await aiApi.getKnowledgeList(params);
+    if (result.data && result.data.code === 200 && result.data.data) {
+      knowledgeList.value = result.data.data;
+    }
+  } catch (error) {
+    console.error('获取知识库列表失败:', error);
+  }
+};
+
 // 发送消息
 const sendMessage = async () => {
   if (!userInput.value.trim() || loading.value || !userStore.isLoggedIn) return;
@@ -423,14 +476,26 @@ const sendMessage = async () => {
       modelName += '?search';
     }
     
+    // 根据选中的知识库ID获取对应的collectionName
+    let knowledgeCollectionName = null;
+    if (selectedKnowledge.value) {
+      const selectedKB = knowledgeList.value.find(kb => kb.id === selectedKnowledge.value);
+      if (selectedKB) {
+        knowledgeCollectionName = selectedKB.collectionName;
+      }
+    }
+    
     const params = {
       question: question,
       model: modelName,
       conversationId: currentConversationId.value || '',
       userId: userStore.user?.id || 8,
-      knowledge: null,
+      knowledge: knowledgeCollectionName,
       toolCalling: isToolCallEnabled.value
     };
+    
+    // 创建AbortController用于取消请求
+    const abortController = new AbortController();
     
     // 使用fetch处理流式响应
     const response = await fetch('/llm/ai/chat', {
@@ -438,7 +503,8 @@ const sendMessage = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
+      signal: abortController.signal
     });
     
     if (!response.ok) {
@@ -449,69 +515,156 @@ const sendMessage = async () => {
     const decoder = new TextDecoder();
     let accumulatedContent = '';
     let aiMessageIndex = -1;
+    let targetConversationId = currentConversationId.value;
     
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      accumulatedContent += chunk;
-      
-      // 如果是第一次接收到数据，隐藏加载动画并添加AI消息
-      if (aiMessageIndex === -1) {
-        isAiResponding.value = false;
-        aiMessageIndex = messages.value.length;
-        messages.value.push({
-          type: 'assistant',
-          content: '',
-          timestamp: new Date()
-        });
-        
-        // 如果当前会话ID为空，获取最新会话ID
-        if (!currentConversationId.value) {
-          try {
-            const latestConversation = await getConversationHistory();
-            if (latestConversation) {
-              currentConversationId.value = latestConversation.conversationId || latestConversation.id || '';
+    // 将流式响应信息存储到activeStreams
+    const streamData = {
+      reader,
+      decoder,
+      accumulatedContent: '',
+      aiMessageIndex: -1,
+      abortController,
+      isActive: true
+    };
+    activeStreams.value.set(targetConversationId || '', streamData);
+    
+    // 如果是第一次接收到数据，准备AI消息
+     const prepareAiMessage = () => {
+       if (aiMessageIndex === -1) {
+         isAiResponding.value = false;
+         aiMessageIndex = messages.value.length;
+         messages.value.push({
+           type: 'assistant',
+           content: '',
+           timestamp: new Date()
+         });
+         
+         // 更新streamData中的aiMessageIndex
+         streamData.aiMessageIndex = aiMessageIndex;
+         
+         // 如果当前会话ID为空，获取最新会话ID
+         if (!targetConversationId) {
+           getConversationHistory().then(latestConversation => {
+             if (latestConversation) {
+               targetConversationId = latestConversation.conversationId || latestConversation.id || '';
+               currentConversationId.value = targetConversationId;
+               // 更新activeStreams中的conversationId
+               if (activeStreams.value.has('')) {
+                 const currentStreamData = activeStreams.value.get('');
+                 activeStreams.value.delete('');
+                 activeStreams.value.set(targetConversationId, currentStreamData);
+               }
+             }
+           }).catch(error => {
+             console.error('获取最新会话ID失败:', error);
+           });
+         }
+       }
+     };
+    
+    // 后台处理流式响应
+    const processStream = async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedContent += chunk;
+          streamData.accumulatedContent = accumulatedContent;
+          
+          // 如果是第一次接收到数据
+           if (aiMessageIndex === -1) {
+             prepareAiMessage();
+           }
+          
+          // 只有当前对话匹配且流式响应属于当前对话时才更新UI
+          if (currentConversationId.value === targetConversationId && activeStreams.value.has(targetConversationId)) {
+            if (aiMessageIndex >= 0 && aiMessageIndex < messages.value.length) {
+              messages.value[aiMessageIndex].content = accumulatedContent;
             }
-          } catch (error) {
-            console.error('获取最新会话ID失败:', error);
+            smartScrollToBottom();
           }
         }
+        
+        // 流式响应完成后检查是否收到了内容
+        if (!accumulatedContent.trim()) {
+          // 如果没有收到任何内容，显示默认错误消息
+          if (aiMessageIndex === -1) {
+            prepareAiMessage();
+          }
+          if (aiMessageIndex >= 0 && currentConversationId.value === targetConversationId) {
+            messages.value[aiMessageIndex].content = '抱歉，我无法回答这个问题。';
+          }
+        }
+        
+        // 流式响应完成，清理状态
+        const currentStreamData = activeStreams.value.get(targetConversationId || '');
+        if (currentStreamData) {
+          currentStreamData.isActive = false;
+        }
+        activeStreams.value.delete(targetConversationId || '');
+        
+        // 如果是当前对话，清理UI状态
+        if (currentConversationId.value === targetConversationId) {
+          isAiResponding.value = false;
+          loading.value = false;
+        }
+        
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('流式响应处理失败:', error);
+          
+          // 如果是网络错误且还没有创建AI消息，创建错误消息
+          if (aiMessageIndex === -1 && currentConversationId.value === targetConversationId) {
+            prepareAiMessage();
+          }
+          if (aiMessageIndex >= 0 && currentConversationId.value === targetConversationId) {
+            messages.value[aiMessageIndex].content = '网络连接出现问题，请稍后重试。';
+          }
+        }
+        
+        const currentStreamData = activeStreams.value.get(targetConversationId || '');
+        if (currentStreamData) {
+          currentStreamData.isActive = false;
+        }
+        activeStreams.value.delete(targetConversationId || '');
+        
+        // 如果是当前对话，清理UI状态
+        if (currentConversationId.value === targetConversationId) {
+          isAiResponding.value = false;
+          loading.value = false;
+        }
       }
-      
-      // 更新AI消息内容
-      messages.value[aiMessageIndex].content = accumulatedContent;
-      smartScrollToBottom();
-    }
+    };
     
-    // 如果没有收到任何内容，显示默认消息
-    if (!accumulatedContent.trim()) {
-      if (aiMessageIndex === -1) {
-        // 如果还没有创建AI消息，先创建一个
-        isAiResponding.value = false;
-        aiMessageIndex = messages.value.length;
-        messages.value.push({
-          type: 'assistant',
-          content: '抱歉，我无法回答这个问题。',
-          timestamp: new Date()
-        });
-      } else {
-        messages.value[aiMessageIndex].content = '抱歉，我无法回答这个问题。';
-      }
-    }
+    // 启动后台流式处理
+    processStream();
+    
+    // 这段代码已移除，因为它会在用户切换对话时错误触发
+    // 默认错误消息现在由processStream函数在真正的错误情况下处理
     
   } catch (error) {
     console.error('发送消息失败:', error);
     // 隐藏加载动画
     isAiResponding.value = false;
-    // 添加错误消息
-    messages.value.push({
-      type: 'error',
-      content: '发送消息失败，请稍后重试。',
-      timestamp: new Date()
-    });
+    
+    // 如果是请求被取消，不显示错误消息
+    if (error.name === 'AbortError') {
+      console.log('请求已被取消');
+    } else {
+      // 添加错误消息
+      messages.value.push({
+        type: 'error',
+        content: '发送消息失败，请稍后重试。',
+        timestamp: new Date()
+      });
+    }
+    
+    // 清理失败的流式响应
+    const targetConversationId = currentConversationId.value;
+    activeStreams.value.delete(targetConversationId || '');
   } finally {
     loading.value = false;
     isAiResponding.value = false; // 确保加载动画被隐藏
@@ -560,10 +713,22 @@ onMounted(async () => {
   
   // 获取历史会话
   await getConversationHistory();
+  
+  // 获取知识库列表
+  await getKnowledgeList();
 });
 
-// 组件卸载时清理全局函数
+// 组件卸载时清理全局函数和取消正在进行的请求
 onUnmounted(() => {
+  // 取消所有正在进行的流式响应
+  activeStreams.value.forEach((streamData, conversationId) => {
+    if (streamData.abortController) {
+      streamData.abortController.abort();
+    }
+  });
+  activeStreams.value.clear();
+  
+  // 清理全局函数
   if (window.copyCode) {
     delete window.copyCode;
   }

@@ -168,17 +168,31 @@
   
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Top, Delete, Edit } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
+import Prism from 'prismjs'
+import 'prismjs/themes/prism-solarizedlight.css'
 import { useBlogStore } from '../stores/blog'
 import { useCommentStore } from '../stores/comment'
 import { useUserStore } from '../stores/user'
 import { getUserAvatarUrl } from '../utils/avatar'
 import { blogApi } from '../api/blog'
+
+// 导入常用语言支持
+import 'prismjs/components/prism-javascript'
+import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-python'
+import 'prismjs/components/prism-java'
+import 'prismjs/components/prism-css'
+import 'prismjs/components/prism-json'
+import 'prismjs/components/prism-bash'
+import 'prismjs/components/prism-sql'
+import 'prismjs/components/prism-go'
+import 'prismjs/components/prism-rust'
 
 const route = useRoute()
 const router = useRouter()
@@ -201,19 +215,95 @@ const comments = computed(() => commentStore.comments)
 const totalComments = computed(() => commentStore.pagination.total)
 const totalPages = computed(() => Math.ceil(totalComments.value / pageSize.value))
 
+// 初始化markdown渲染器
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+})
+
+// 处理代码块，添加语言标签和复制按钮
+const enhanceCodeBlocks = (html) => {
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const codeBlocks = doc.querySelectorAll('pre code')
+    
+    codeBlocks.forEach((codeElement, index) => {
+      const preElement = codeElement.parentElement
+      if (!preElement || !preElement.parentNode) return
+      
+      // 获取语言类型
+      const className = codeElement.className || ''
+      const languageMatch = className.match(/language-(\w+)/)
+      const language = languageMatch ? languageMatch[1] : 'text'
+      const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+      
+      // 添加 Prism 语言类名
+      if (language && language !== 'text') {
+        codeElement.className = `language-${language}`
+        preElement.className = `language-${language}`
+        
+        // 使用 Prism 进行语法高亮
+        try {
+          if (Prism.languages[language]) {
+            const highlightedCode = Prism.highlight(codeElement.textContent, Prism.languages[language], language)
+            codeElement.innerHTML = highlightedCode
+          }
+        } catch (prismError) {
+          console.warn('Prism highlight error for language:', language, prismError)
+        }
+      }
+      
+      // 创建代码块容器
+      const codeContainer = doc.createElement('div')
+      codeContainer.className = 'code-block-container'
+      
+      // 创建头部工具栏
+      const toolbar = doc.createElement('div')
+      toolbar.className = 'code-toolbar'
+      
+      // 语言标签
+      const languageLabel = doc.createElement('span')
+      languageLabel.className = 'language-label'
+      languageLabel.textContent = displayLanguage
+      
+      // 复制按钮
+      const copyButton = doc.createElement('button')
+      copyButton.className = 'copy-button'
+      copyButton.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制'
+      copyButton.setAttribute('data-code', codeElement.textContent || '')
+      copyButton.setAttribute('onclick', `copyCode(this)`)
+      
+      toolbar.appendChild(languageLabel)
+      toolbar.appendChild(copyButton)
+      
+      // 重新构建结构 
+      preElement.parentNode.insertBefore(codeContainer, preElement)
+      codeContainer.appendChild(toolbar)
+      codeContainer.appendChild(preElement)
+    })
+    
+    return doc.body.innerHTML
+  } catch (error) {
+    console.error('enhanceCodeBlocks error:', error)
+    return html // 如果出错，返回原始HTML
+  }
+}
+
 // 渲染markdown内容
 const renderedContent = computed(() => {
   if (!blog.value || !blog.value.content) {
     return '<p>内容加载中...</p>'
   }
   
-  const md = new MarkdownIt({
-    html: false,
-    linkify: true,
-    typographer: true
-  })
-  
-  return md.render(blog.value.content)
+  try {
+    const html = md.render(blog.value.content)
+    return enhanceCodeBlocks(html)
+  } catch (error) {
+    console.error('Markdown render error:', error)
+    return '<p>内容渲染失败</p>'
+  }
 })
 
 // Check if user can delete blog
@@ -498,6 +588,25 @@ const toggleCommentPin = async (comment) => {
 
 // Lifecycle
 onMounted(async () => {
+  // 设置全局复制函数
+  window.copyCode = function(button) {
+    const code = button.getAttribute('data-code')
+    if (code) {
+      navigator.clipboard.writeText(code).then(() => {
+        button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2l-87 114.8c-9.4 12.4-24.6 19.9-40.8 19.9H296c-35.3 0-64 28.7-64 64v448c0 35.3 28.7 64 64 64h616c35.3 0 64-28.7 64-64V254c0-35.3-28.7-64-64-64z" fill="#52c41a"></path></svg> 已复制'
+        setTimeout(() => {
+          button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制'
+        }, 2000)
+      }).catch(err => {
+        console.error('复制失败:', err)
+        button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M685.4 354.8c0-4.4-3.6-8-8-8l-66 .3L512 465.6l-99.3-118.4-66.1-.3c-4.4 0-8 3.5-8 8 0 1.9.7 3.7 1.9 5.2l130.1 155L340.5 670a8.32 8.32 0 0 0 6.4 13.6l66.1-.3L512 564.4l99.3 118.9 66.1.3c4.4 0 8-3.5 8-8 0-1.9-.7-3.7-1.9-5.2L553.5 515l130.1-155c1.2-1.4 1.8-3.3 1.8-5.2z" fill="#ff4d4f"></path></svg> 失败'
+        setTimeout(() => {
+          button.innerHTML = '<svg class="copy-icon" viewBox="0 0 1024 1024" width="14" height="14"><path d="M832 64H296c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h496v688c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V96c0-17.7-14.3-32-32-32zM704 192H192c-17.7 0-32 14.3-32 32v530.7c0 8.5 3.4 16.6 9.4 22.6l173.3 173.3c2.2 2.2 4.7 4 7.4 5.5v1.9h4.4c2 0.3 4.1 0.5 6.1 0.5H704c17.7 0 32-14.3 32-32V224c0-17.7-14.3-32-32-32zM350 856.2L263.9 770H350v86.2zM672 888H414V746c0-22.1-17.9-40-40-40H232V256h440v632z"></path></svg> 复制'
+        }, 2000)
+      })
+    }
+  }
+  
   await fetchBlog()
   
   // 如果用户已登录，检查点赞状态
@@ -507,6 +616,13 @@ onMounted(async () => {
     } catch (err) {
       console.error('检查点赞状态失败:', err)
     }
+  }
+})
+
+// 组件卸载时清理全局函数
+onUnmounted(() => {
+  if (window.copyCode) {
+    delete window.copyCode
   }
 })
 </script>
@@ -1010,6 +1126,120 @@ onMounted(async () => {
     flex-direction: column;
     gap: 0.5rem;
   }
+}
+</style>
+
+<style>
+/* 代码块增强样式 - 全局样式，确保动态生成的内容能应用 */
+.markdown-body .code-block-container {
+  position: relative;
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  background: #f8f9fa;
+}
+
+.markdown-body .code-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f1f3f4;
+  border-bottom: 1px solid #e1e5e9;
+  font-size: 12px;
+}
+
+.markdown-body .language-label {
+  font-weight: 600;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.markdown-body .copy-button {
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.markdown-body .copy-button .copy-icon {
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+.markdown-body .copy-button:hover {
+  background: #f8f9fa;
+  border-color: #5f6368;
+  color: #202124;
+}
+
+.markdown-body .code-block-container pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  background: #e8e8e8;
+}
+
+.markdown-body .code-block-container pre code {
+  display: block;
+  padding: 16px;
+  background: transparent;
+  border-radius: 0;
+}
+
+/* 夜间模式下的代码块样式 */
+:deep(.dark-mode) .markdown-body .code-block-container {
+  border-color: #30363d;
+  background: #0d1117;
+}
+
+:deep(.dark-mode) .markdown-body .code-toolbar {
+  background: #161b22;
+  border-bottom-color: #30363d;
+}
+
+:deep(.dark-mode) .markdown-body .language-label {
+  color: #8b949e;
+}
+
+:deep(.dark-mode) .markdown-body .copy-button {
+  background: #21262d;
+  border-color: #30363d;
+  color: #8b949e;
+}
+
+:deep(.dark-mode) .markdown-body .copy-button:hover {
+  background: #30363d;
+  border-color: #8b949e;
+  color: #f0f6fc;
+}
+
+:deep(.dark-mode) .markdown-body .code-block-container pre {
+  background: #0d1117;
+}
+
+/* 内联代码样式 */
+.markdown-body code {
+  background: #f7fafc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #e53e3e;
+}
+
+/* 夜间模式下的内联代码样式 */
+:deep(.dark-mode) .markdown-body code {
+  background: #2d3748;
+  color: #68d391;
 }
 </style>
 
