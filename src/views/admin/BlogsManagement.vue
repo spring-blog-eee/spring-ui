@@ -92,20 +92,20 @@ const formatDate = (date) => {
 }
 
 const fetchBlogs = async () => {
-  loading.value = true
-  try {
-    const response = await blogStore.fetchBlogs({
-      page: currentPage.value,
-      limit: pageSize.value,
-      search: searchQuery.value
-    })
-    blogs.value = response.blogs
-    total.value = response.total
-  } catch (error) {
-    ElMessage.error('Failed to fetch blogs')
-  } finally {
-    loading.value = false
-  }
+  // loading.value = true
+  // try {
+  //   const response = await blogStore.fetchBlogs({
+  //     page: currentPage.value,
+  //     limit: pageSize.value,
+  //     search: searchQuery.value
+  //   })
+  //   blogs.value = response.blogs
+  //   total.value = response.total
+  // } catch (error) {
+  //   ElMessage.error('Failed to fetch blogs')
+  // } finally {
+  //   loading.value = false
+  // }
 }
 
 const handleSearch = () => {

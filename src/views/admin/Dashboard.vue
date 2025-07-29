@@ -3,7 +3,7 @@
     <div class="container">
       <h1>管理员仪表盘</h1>
       
-      <div class="stats-grid">
+      <!-- <div class="stats-grid">
         <el-card class="stat-card">
           <template #header>
             <div class="card-header">
@@ -33,60 +33,104 @@
           </template>
           <div class="stat-value">{{ stats.users }}</div>
         </el-card>
-      </div>
+      </div> -->
       
-      <div class="admin-actions">
-        <router-link to="/admin/blog/create">
-          <el-button type="primary">
-            <el-icon><Plus /></el-icon>
-            新文章
-          </el-button>
-        </router-link>
-      </div>
-      
-      <!-- 公共资源上传区域 -->
-      <el-card class="upload-section">
-        <template #header>
-          <div class="card-header">
-            <h3>公共资源管理</h3>
-            <el-icon><FolderOpened /></el-icon>
+      <!-- 管理操作区域 -->
+      <div class="admin-main-actions">
+        <!-- 新文章创建区域 -->
+        <el-card class="create-article-section">
+          <template #header>
+            <div class="card-header">
+              <h3>文章管理</h3>
+              <el-icon><Document /></el-icon>
+            </div>
+          </template>
+          
+          <div class="create-article-area">
+            <div class="action-description">
+              <h4>创建新文章</h4>
+              <p>开始撰写新的博客文章，分享您的想法和见解</p>
+            </div>
+            
+            <div class="action-buttons">
+              <router-link to="/admin/blog/create">
+                <el-button type="primary" size="large" class="create-btn">
+                  <el-icon><Plus /></el-icon>
+                  <span>新建文章</span>
+                </el-button>
+              </router-link>
+              
+              <!-- <router-link to="/admin/blog/manage">
+                <el-button type="info" size="large" class="manage-btn">
+                  <el-icon><Document /></el-icon>
+                  <span>管理文章</span>
+                </el-button>
+              </router-link> -->
+            </div>
+            
+            <div class="quick-stats">
+              <!-- <div class="stat-item">
+                <span class="stat-label">草稿</span>
+                <span class="stat-value">{{ stats.posts }}</span>
+              </div> -->
+              <div class="stat-item">
+                <span class="stat-label">已发布</span>
+                <span class="stat-value">{{ totalPosts }}</span>
+              </div>
+            </div>
           </div>
-        </template>
+        </el-card>
         
-        <div class="upload-area">
-          <input 
-            type="file" 
-            ref="fileInput" 
-            @change="handleFileUpload" 
-            multiple 
-            style="display: none"
-          >
-          <el-button 
-            type="success" 
-            size="large"
-            @click="$refs.fileInput.click()" 
-            :disabled="isUploading"
-            :loading="isUploading"
-          >
-            <el-icon><Upload /></el-icon>
-            <span v-if="!isUploading">上传公共资源</span>
-            <span v-else>上传中... {{ uploadProgress }}%</span>
-          </el-button>
+        <!-- 公共资源上传区域 -->
+        <el-card class="upload-section">
+          <template #header>
+            <div class="card-header">
+              <h3>公共资源管理</h3>
+              <el-icon><FolderOpened /></el-icon>
+            </div>
+          </template>
           
-          <div class="upload-tips">
-            <p>支持多文件上传，文件将作为公共资源供所有用户访问</p>
-            <p>支持的文件类型：文档、图片、视频、音频等</p>
+          <div class="upload-area">
+            <div class="action-description">
+              <h4>上传公共资源</h4>
+              <p>上传文件作为公共资源，供所有用户访问使用</p>
+            </div>
+            
+            <input 
+              type="file" 
+              ref="fileInput" 
+              @change="handleFileUpload" 
+              multiple 
+              style="display: none"
+            >
+            <el-button 
+              type="success" 
+              size="large"
+              @click="$refs.fileInput.click()" 
+              :disabled="isUploading"
+              :loading="isUploading"
+              class="upload-btn"
+            >
+              <el-icon><Upload /></el-icon>
+              <span v-if="!isUploading">选择文件上传</span>
+              <span v-else>上传中... {{ uploadProgress }}%</span>
+            </el-button>
+            
+            <div class="upload-tips">
+              <p>支持多文件上传，文件将作为公共资源供所有用户访问</p>
+              <p>支持的文件类型：文档、图片、视频、音频等</p>
+            </div>
+            
+            <!-- 上传进度条 -->
+            <el-progress 
+              v-if="isUploading" 
+              :percentage="uploadProgress" 
+              :stroke-width="8"
+              class="upload-progress"
+            />
           </div>
-          
-          <!-- 上传进度条 -->
-          <el-progress 
-            v-if="isUploading" 
-            :percentage="uploadProgress" 
-            :stroke-width="8"
-            class="upload-progress"
-          />
-        </div>
-      </el-card>
+        </el-card>
+      </div>
       
       <router-view></router-view>
     </div>
@@ -94,21 +138,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, FolderOpened } from '@element-plus/icons-vue'
+import { Upload, FolderOpened, Document, Plus } from '@element-plus/icons-vue'
 import { resourceApi } from '@/api/resource'
 import { useUserStore } from '@/stores/user'
+import { useBlogStore } from '@/stores/blog'
 
 // 用户状态
 const userStore = useUserStore()
+const blogStore = useBlogStore()
 
 // 响应式数据
 const stats = ref({
-  posts: 0,
   comments: 0,
   users: 0
 })
+
+// 计算属性：从blog store获取博客总数
+const totalPosts = computed(() => blogStore.pagination.total)
 
 const isUploading = ref(false)
 const uploadProgress = ref(0)
@@ -186,6 +234,15 @@ const handleFileUpload = async (event) => {
     return
   }
   
+  // 检查文件名长度
+  for (const file of files) {
+    if (file.name.length > 50) {
+      ElMessage.error(`文件名 "${file.name}" 超出50个字符限制，请重命名后再上传`)
+      event.target.value = '' // 清空文件输入框
+      return
+    }
+  }
+  
   ElMessage.info(`开始上传 ${files.length} 个公共资源文件...`)
   
   isUploading.value = true
@@ -258,11 +315,13 @@ const uploadPublicFileToOSS = async (file) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 获取博客总数
+  await blogStore.fetchBlogs({ pageIndex: 1, limit: 1 })
+  
   // Fetch dashboard stats
   // This would be replaced with actual API calls
   stats.value = {
-    posts: 25,
     comments: 148,
     users: 53
   }
@@ -331,23 +390,185 @@ h1 {
   padding: 1rem 0;
 }
 
-.admin-actions {
+/* 主要操作区域布局 */
+.admin-main-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
   margin-bottom: 2rem;
 }
 
-.upload-section {
-  margin-bottom: 2rem;
+/* 新文章创建区域样式 */
+.create-article-section {
   background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.create-article-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+:deep(.dark-mode) .create-article-section {
+  background-color: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:deep(.dark-mode) .create-article-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.create-article-area {
+  padding: 2rem;
+}
+
+.action-description {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.action-description h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+:deep(.dark-mode) .action-description h4 {
+  color: #f1f5f9;
+}
+
+.action-description p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+:deep(.dark-mode) .action-description p {
+  color: #94a3b8;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.create-btn, .manage-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 500;
   border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.create-btn {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: none;
+}
+
+.create-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-1px);
+}
+
+.manage-btn {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  border: none;
+}
+
+.manage-btn:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+  transform: translateY(-1px);
+}
+
+.quick-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+:deep(.dark-mode) .quick-stats {
+  background-color: #0f172a;
+  border-color: #334155;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+:deep(.dark-mode) .stat-label {
+  color: #94a3b8;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+:deep(.dark-mode) .stat-value {
+  color: #60a5fa;
+}
+
+/* 上传区域样式 */
+.upload-section {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
 
 :deep(.dark-mode) .upload-section {
   background-color: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:deep(.dark-mode) .upload-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .upload-area {
-  text-align: center;
   padding: 2rem;
+  text-align: center;
+}
+
+.upload-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.upload-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
 }
 
 .upload-tips {
@@ -376,8 +597,31 @@ h1 {
     grid-template-columns: 1fr;
   }
   
+  .admin-main-actions {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .create-article-area,
   .upload-area {
-    padding: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .action-buttons {
+    gap: 0.75rem;
+  }
+  
+  .create-btn, .manage-btn, .upload-btn {
+    height: 44px;
+    font-size: 0.95rem;
+  }
+  
+  .quick-stats {
+    padding: 0.75rem;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
   }
 }
 </style>

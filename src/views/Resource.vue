@@ -429,6 +429,15 @@ const handleFileUpload = async (event) => {
     return
   }
   
+  // 检查文件名长度
+  for (const file of files) {
+    if (file.name.length > 50) {
+      ElMessage.error(`文件名 "${file.name}" 超出50个字符限制，请重命名后再上传`)
+      event.target.value = '' // 清空文件输入框
+      return
+    }
+  }
+  
   ElMessage.info(`开始上传 ${files.length} 个文件...`)
   
   isUploading.value = true

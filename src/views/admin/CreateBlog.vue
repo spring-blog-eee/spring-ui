@@ -393,7 +393,7 @@ const handleSubmit = async () => {
       tags: JSON.stringify(blogForm.tags)
     }
     
-    ElMessage.info('正在获取上传地址...')
+    // ElMessage.info('正在获取上传地址...')
     
     // 调用API获取上传URL
     let urlResponse = await blogApi.getUploadUrls(requestParams)
@@ -407,13 +407,13 @@ const handleSubmit = async () => {
     const [mdUrl, imgUrl] = urlResponse.data
     
     // 上传Markdown内容
-    ElMessage.info('正在上传文章内容...')
+    // ElMessage.info('正在上传文章内容...')
     const contentUrl = await uploadMarkdownContent(mdUrl, content)
     
     // 上传封面图片（如果有）
     let coverUrl = ''
     if (blogForm.cover === 'pending' && coverFile.value) {
-      ElMessage.info('正在上传封面图片...')
+      // ElMessage.info('正在上传封面图片...')
       coverUrl = await uploadCoverImage(imgUrl)
     }
     

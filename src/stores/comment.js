@@ -18,6 +18,16 @@ export const useCommentStore = defineStore('comment', () => {
     try {
       loading.value = true
       error.value = null
+      
+      // 首先获取评论总数
+      const countResponse = await commentApi.getCommentCount({
+        blogId: parseInt(blogId)
+      })
+      let totalCount = 0
+      if (countResponse.data && countResponse.data.code === 200) {
+        totalCount = countResponse.data.data || 0
+      }
+      
       const response = await commentApi.getComments({
         blogId: parseInt(blogId),
         pageIndex: params.page || pagination.value.page,
@@ -50,7 +60,7 @@ export const useCommentStore = defineStore('comment', () => {
         pagination.value = {
           page: params.page || pagination.value.page,
           limit: params.limit || pagination.value.limit,
-          total: response.data.total || commentData.length
+          total: totalCount // 使用计数接口获取的总数
         }
       } else {
         comments.value = []

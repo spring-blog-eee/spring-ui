@@ -224,6 +224,11 @@ const handleSubmit = async () => {
 
 // Handle OAuth login
 const handleOAuth = (provider) => {
+  if (provider === 'google') {
+    ElMessage.info('Google OAuth2 功能正在开发中')
+    return
+  }
+  
   // In a real implementation, this would redirect to the OAuth provider
   // For demo purposes, we'll just show a message
   ElMessage.info(`${provider} registration would redirect to authentication page`)

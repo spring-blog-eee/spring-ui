@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const prefix = '/blogs'
+const prefix = '/api/blogs'
 
 export const likeApi = {
   getLikeCount(params)

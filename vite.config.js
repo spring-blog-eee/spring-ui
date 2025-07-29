@@ -38,25 +38,25 @@ export default defineConfig({
     port: 5000,
     proxy: {
       '/api': {
-        target: "http://localhost:58080",
+        target: "http://localhost:57070",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        // rewrite: (path) => path.replace(/^\/api/, '')
         },
-      '/llm': {
-        target: "http://localhost:58070",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/llm/, '')
-      },
-      '/resources':{
-        target: "http://localhost:58012",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/resources/, '')
-      },
-      '/blogs':{
-        target: "http://localhost:58050",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/blogs/, '')
-      },
+      // '/llm': {
+      //   target: "http://localhost:58070",
+      //   changeOrigin: true,
+      //   rewrite: (path) => path.replace(/^\/llm/, '')
+      // },
+      // '/resources':{
+      //   target: "http://localhost:58012",
+      //   changeOrigin: true,
+      //   rewrite: (path) => path.replace(/^\/resources/, '')
+      // },
+      // '/blogs':{
+      //   target: "http://localhost:58050",
+      //   changeOrigin: true,
+      //   rewrite: (path) => path.replace(/^\/blogs/, '')
+      // },
     }
   }
 })

@@ -8,7 +8,7 @@ export const useBlogStore = defineStore('blog', () => {
   const currentBlog = ref(null)
   const pagination = ref({
     page: 1,
-    limit: 10,
+    limit: 12,
     total: 0
   })
   const loading = ref(false)
@@ -22,6 +22,14 @@ export const useBlogStore = defineStore('blog', () => {
      {
       loading.value = true
       error.value = null
+      
+      // 首先获取博客总数
+      const countResponse = await blogApi.getBlogCount()
+      let totalCount = 0
+      if (countResponse.data && countResponse.data.code === 200) {
+        totalCount = countResponse.data.data || 0
+      }
+      
       const response = await blogApi.getBlogList({
         pageIndex: params.pageIndex || params.page || pagination.value.page || 1,
         ...params
@@ -63,11 +71,11 @@ export const useBlogStore = defineStore('blog', () => {
 
         console.log(blogs.value)
         
-        // 更新分页信息（这里假设后端会返回总数，如果没有则使用当前数据长度）
+        // 更新分页信息，使用计数接口获取的总数
          pagination.value = {
            page: params.pageIndex || params.page || pagination.value.page || 1,
-           limit: params.limit || pagination.value.limit || 10,
-           total: response.data.total || blogData.length // 优先使用后端返回的总数
+           limit: params.limit || pagination.value.limit || 12,
+           total: totalCount // 使用计数接口获取的总数
          }
       } else {
         blogs.value = []

@@ -131,7 +131,7 @@ const handleScroll = () => {
 // Handle logout
 const handleLogout = async () => {
   userStore.logout()
-  ElMessage.success('Logged out successfully')
+  ElMessage.success('登出成功！')
   router.push('/')
 }
 

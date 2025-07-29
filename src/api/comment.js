@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const prefix = '/blogs'
+const prefix = '/api/blogs'
 
 export const commentApi = 
 {
@@ -31,6 +31,10 @@ export const commentApi =
   cancelCommentToTop(params)
   {
     return axios.post(prefix + '/comment/cancel-top', params)
-  }
+  },
+  getCommentCount(params)
+  {
+    return axios.post(prefix + '/comment/get-count', params)
+  },
 
 }

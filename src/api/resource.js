@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const prefix = 'resources'
+const prefix = 'api/resources'
 export const resourceApi = {
     getPublicResources(params)
     {

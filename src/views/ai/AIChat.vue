@@ -498,7 +498,7 @@ const sendMessage = async () => {
     const abortController = new AbortController();
     
     // 使用fetch处理流式响应
-    const response = await fetch('/llm/ai/chat', {
+    const response = await fetch('/api/llm/ai/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

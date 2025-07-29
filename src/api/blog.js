@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const prefix = '/blogs'
+const prefix = '/api/blogs'
 
 export const blogApi = {
   // Get upload URLs for blog creation
@@ -32,5 +32,9 @@ export const blogApi = {
   updateBlog(params)
   {
     return axios.post(prefix + '/blog/update', params)
+  },
+  getBlogCount()
+  {
+    return axios.get(prefix + '/blog/get-count')
   },
 }
