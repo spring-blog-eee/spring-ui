@@ -119,6 +119,7 @@ import { useThemeStore } from '../../stores/theme'
 import { useBlogStore } from '../../stores/blog'
 import { useUserStore } from '../../stores/user'
 import { blogApi } from '../../api/blog'
+import { ensureHttps } from '../../utils/url'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 import { Cropper } from 'vue-advanced-cropper'
@@ -352,9 +353,11 @@ const uploadCoverImage = async (imgUrl) => {
   if (!coverFile.value || !imgUrl) return ''
   
   try {
+    // 确保上传URL使用HTTPS协议
+    const secureImgUrl = ensureHttps(imgUrl)
     const contentType = getImageContentType(coverFile.value.name)
     console.log("Content-Type:", contentType)
-    const response = await fetch(imgUrl, {
+    const response = await fetch(secureImgUrl, {
       method: 'PUT',
       body: coverFile.value,
       headers: {
@@ -366,8 +369,8 @@ const uploadCoverImage = async (imgUrl) => {
       throw new Error('图片上传失败')
     }
     
-    // 返回不带查询参数的URL
-    return imgUrl.split('?')[0]
+    // 返回不带查询参数的URL，并确保HTTPS
+    return ensureHttps(secureImgUrl.split('?')[0])
   } catch (error) {
     console.error('封面上传失败:', error)
     throw new Error('封面图片上传失败')
@@ -378,7 +381,9 @@ const uploadMarkdownContent = async (mdUrl, content) => {
   if (!mdUrl || !content) return ''
   
   try {
-    const response = await fetch(mdUrl, {
+    // 确保上传URL使用HTTPS协议
+    const secureMdUrl = ensureHttps(mdUrl)
+    const response = await fetch(secureMdUrl, {
       method: 'PUT',
       body: content,
       headers: {
@@ -390,8 +395,8 @@ const uploadMarkdownContent = async (mdUrl, content) => {
       throw new Error('内容上传失败')
     }
     
-    // 返回不带查询参数的URL
-    return mdUrl.split('?')[0]
+    // 返回不带查询参数的URL，并确保HTTPS
+    return ensureHttps(secureMdUrl.split('?')[0])
   } catch (error) {
     console.error('内容上传失败:', error)
     throw new Error('Markdown内容上传失败')

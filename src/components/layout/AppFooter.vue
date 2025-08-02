@@ -3,8 +3,8 @@
     <div class="container">
       <div class="footer-content">
         <div class="footer-logo">
-          <h2>SpringBlog</h2>
-          <p>一个专注于编程学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
+          <h2>Archipelago</h2>
+          <p>一个专注于学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
         </div>
         
         <div class="footer-links">
@@ -35,7 +35,7 @@
       </div>
       
       <div class="footer-bottom">
-        <p>&copy; {{ currentYear }} SpringBlog. 保留所有权利。</p>
+        <p>&copy; {{ currentYear }} Archipelago. 保留所有权利。</p>
         <div class="social-icons">
           <a href="#" aria-label="GitHub">
             <el-icon><Platform /></el-icon>
@@ -87,6 +87,9 @@ const currentYear = computed(() => new Date().getFullYear())
   margin: 0 0 0.5rem;
   color: #0288d1;
   font-size: 1.5rem;
+  font-family: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: 0.3px;
 }
 
 .footer-logo p {

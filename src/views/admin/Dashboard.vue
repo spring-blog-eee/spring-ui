@@ -142,6 +142,7 @@ import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, FolderOpened, Document, Plus } from '@element-plus/icons-vue'
 import { resourceApi } from '@/api/resource'
+import { ensureHttps } from '@/utils/url'
 import { useUserStore } from '@/stores/user'
 import { useBlogStore } from '@/stores/blog'
 
@@ -291,7 +292,7 @@ const uploadPublicFileToOSS = async (file) => {
     }
 
     const signatureData = signatureResponse.data
-    const ossData = signatureData.data
+    const ossData = ensureHttps(signatureData.data)
     console.log('OSS上传数据:', ossData)
 
     const response = await fetch(ossData, {

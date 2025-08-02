@@ -3,7 +3,7 @@
     <div class="container">
       <div class="logo">
         <router-link to="/">
-          <h1>SpringBlog</h1>
+          <h1>Archipelago</h1>
         </router-link>
       </div>
       
@@ -53,34 +53,7 @@
         </template>
       </div>
       
-      <!-- Mobile menu button -->
-      <button class="mobile-menu-btn" @click="isMobileMenuOpen = !isMobileMenuOpen">
-        <el-icon v-if="isMobileMenuOpen"><Close /></el-icon>
-        <el-icon v-else><Menu /></el-icon>
-      </button>
-      
-      <!-- Mobile menu -->
-      <div class="mobile-nav" :class="{ 'open': isMobileMenuOpen }">
-        <router-link to="/" class="nav-link" @click="isMobileMenuOpen = false">首页</router-link>
-        <router-link to="/blog" class="nav-link" @click="isMobileMenuOpen = false">博客</router-link>
-        
-        <!-- Admin links -->
-        <template v-if="userStore.isAdmin">
-          <router-link to="/admin" class="nav-link" @click="isMobileMenuOpen = false">仪表盘</router-link>
-        </template>
-        
-        <!-- Auth links -->
-        <template v-if="!userStore.isLoggedIn">
-          <router-link to="/login" class="nav-link" @click="isMobileMenuOpen = false">登录</router-link>
-          <router-link to="/register" class="nav-link" @click="isMobileMenuOpen = false">注册</router-link>
-        </template>
-        
-        <!-- User links -->
-        <template v-else>
-          <router-link to="/profile" class="nav-link" @click="isMobileMenuOpen = false">个人资料</router-link>
-          <a href="#" class="nav-link" @click="handleMobileLogout">退出登录</a>
-        </template>
-      </div>
+
     </div>
   </header>
 </template>
@@ -98,7 +71,6 @@ const userStore = useUserStore()
 const themeStore = useThemeStore()
 
 const scrolled = ref(false)
-const isMobileMenuOpen = ref(false)
 const debugMode = ref(false)
 const userAvatar = ref('')
 
@@ -135,20 +107,9 @@ const handleLogout = async () => {
   router.push('/')
 }
 
-// Handle mobile logout
-const handleMobileLogout = (e) => {
-  e.preventDefault()
-  handleLogout()
-  isMobileMenuOpen.value = false
-}
 
-// Handle click outside to close mobile menu
-const handleClickOutside = (event) => {
-  const header = event.target.closest('.app-header')
-  if (!header && isMobileMenuOpen.value) {
-    isMobileMenuOpen.value = false
-  }
-}
+
+
 
 // Debug function to test click events
 const debugClick = (elementName) => {
@@ -169,13 +130,11 @@ const toggleDebugMode = () => {
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
-  document.addEventListener('click', handleClickOutside)
   handleScroll() // Check initial scroll position
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -228,15 +187,27 @@ onUnmounted(() => {
 .logo h1 {
   margin: 0;
   font-size: 1.8rem;
-  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
   font-weight: 600;
   background: linear-gradient(135deg, #6db33f 0%, #5cb85c 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradient-animation 3s linear infinite;
-  letter-spacing: -0.5px;
+  animation: gradient-animation 4s ease-in-out infinite;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 手机端隐藏标题并居中导航 */
+@media (max-width: 768px) {
+  .logo {
+    display: none;
+  }
+  
+  .desktop-nav {
+    justify-content: center;
+  }
 }
 
 @keyframes gradient-animation {
@@ -361,155 +332,7 @@ onUnmounted(() => {
   text-decoration: none;
 }
 
-.mobile-menu-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #333;
-  transition: color 0.3s ease;
-  position: relative;
-  z-index: 2;
-  pointer-events: auto;
-}
 
-.dark-mode .mobile-menu-btn {
-  color: var(--el-text-color-primary);
-}
 
-.mobile-nav {
-  display: none;
-  position: fixed;
-  top: 64px;
-  left: 0;
-  width: 100%;
-  background-color: white;
-  padding: 1rem 0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-100%);
-  opacity: 0;
-  transition: transform 0.3s, opacity 0.3s;
-  flex-direction: column;
-  z-index: 999;
-}
 
-.dark-mode .mobile-nav {
-  background-color: var(--el-bg-color);
-}
-
-.mobile-nav.open {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.mobile-nav .nav-link {
-  padding: 0.75rem 1rem;
-  display: block;
-  text-align: center;
-}
-
-@media (max-width: 480px) {
-  .desktop-nav {
-    display: none;
-  }
-  
-  .mobile-menu-btn {
-    display: block;
-  }
-  
-  .mobile-nav {
-    display: flex;
-  }
-  
-  .right-actions .auth-btn {
-    display: none;
-  }
-}
-
-/* 确保桌面端元素在大屏幕上正常显示 */
-@media (min-width: 481px) {
-  .desktop-nav {
-    display: flex !important;
-  }
-  
-  .desktop-nav .nav-link {
-    display: inline-block !important;
-  }
-  
-  .right-actions .auth-btn {
-    display: inline-block !important;
-  }
-}
-
-@media (min-width: 481px) {
-  .mobile-nav {
-    display: none !important;
-  }
-  
-  .mobile-menu-btn {
-    display: none !important;
-  }
-}
-
-/* 强制确保所有可点击元素都能响应点击 */
-.nav-link {
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 5 !important;
-}
-
-.auth-btn {
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 5 !important;
-  /* 确保按钮不会扩展超出其内容区域 */
-  width: auto !important;
-  max-width: fit-content !important;
-}
-
-.theme-toggle,
-.mobile-menu-btn,
-.user-avatar {
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 5 !important;
-}
-
-/* Element Plus 图标修复 */
-.el-icon {
-  pointer-events: none !important;
-}
-
-/* 确保下拉菜单可以点击 */
-.el-dropdown {
-  pointer-events: auto !important;
-  z-index: 10 !important;
-}
-
-.el-dropdown-menu {
-  z-index: 2000 !important;
-}
-
-/* 调试样式 - 临时添加边框来查看点击区域 */
-.debug-mode .nav-link {
-  border: 2px solid red !important;
-}
-
-.debug-mode .auth-btn {
-  border: 2px solid blue !important;
-}
-
-.debug-mode .theme-toggle {
-  border: 2px solid green !important;
-}
-
-/* 确保没有其他元素覆盖 */
-.app-header * {
-  pointer-events: auto;
-}
-
-.app-header .el-icon {
-  pointer-events: none;
-}
 </style>

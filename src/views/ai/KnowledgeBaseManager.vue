@@ -237,6 +237,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user.js'
+import { ensureHttps } from '../../utils/url.js'
 import {
   Plus,
   Search,
@@ -467,7 +468,7 @@ const uploadFilesToKnowledge = async () => {
         // 逐个上传文件
          for (let i = 0; i < currentKB.value.files.length; i++) {
            const file = currentKB.value.files[i]
-           const uploadUrl = uploadUrls[i]
+           const uploadUrl = ensureHttps(uploadUrls[i]) // 确保使用HTTPS协议
            
            const progressMessage = ElMessage({
              message: `正在上传文件 ${i + 1}/${currentKB.value.files.length}: ${file.name}`,
@@ -518,7 +519,7 @@ const uploadFilesToKnowledge = async () => {
     // 添加URL信息
     if (currentKB.value.urls && currentKB.value.urls.length > 0) {
       const urlFiles = currentKB.value.urls.map(url => ({
-        url: url,
+        url: ensureHttps(url), // 确保URL使用HTTPS协议
         userId: getCurrentUserId()
       }))
       loadParams.files = [...(loadParams.files || []), ...urlFiles]

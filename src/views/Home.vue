@@ -4,8 +4,8 @@
     <section class="hero-section">
       <div class="container hero-content">
         <div class="hero-text">
-          <h1>在 <span>SpringBlog</span><br class="mobile-break"> 分享你的故事</h1>
-          <p>一个专注于编程学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
+          <h1>在 <span>Archipelago</span><br class="mobile-break"> 分享你的知识</h1>
+          <p>一个专注于学习和技术交流的网站，记录学习过程和实践经验，促进知识分享与讨论。</p>
           <div class="hero-buttons">
             <router-link to="/blog" class="btn-primary">
               浏览文章 <el-icon><ArrowRight /></el-icon>
@@ -197,10 +197,12 @@ onMounted(() => {
   font-weight: 700;
   margin-bottom: 1.5rem;
   color: #1e293b;
+  font-family: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
   background: url(../assets/title-img.png) no-repeat center/120% auto;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  letter-spacing: 0.5px;
 }
 
 .dark-mode .hero-text h1 {
@@ -221,6 +223,9 @@ onMounted(() => {
 
 .hero-text h1 span {
   color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-weight: 800;
 }
 
 .hero-text p {

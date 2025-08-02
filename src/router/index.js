@@ -128,7 +128,7 @@ const routes = [
     path: '/resource',
     name: 'Resource',
     component: Resource,
-    meta: { title: '资料库' }
+    meta: { title: 'Resources' }
   },
   {
     path: '/knowledge-base-manager',
@@ -183,7 +183,7 @@ router.beforeEach((to, from, next) => {
   NProgress.start()
   
   // Set page title
-  document.title = `${to.meta.title || 'Page'} - BlogVue`
+  document.title = `${to.meta.title || 'Page'} - 智屿`
   
   const userStore = useUserStore()
   

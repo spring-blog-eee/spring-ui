@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../stores/user'
@@ -150,8 +150,10 @@ const handleSubmit = async () => {
 }
 
 // Handle OAuth login
-const handleOAuth = (provider) => {
-  if (provider === 'google') {
+const handleOAuth = (provider) => 
+{
+  if (provider === 'google') 
+  {
     ElMessage.info('Google OAuth2 功能正在开发中')
     return
   }

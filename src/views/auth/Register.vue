@@ -94,12 +94,13 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../stores/user'
 import { authApi } from '../../api/auth'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const formRef = ref(null)
 const loading = ref(false)
@@ -222,16 +223,16 @@ const handleSubmit = async () => {
   }
 }
 
-// Handle OAuth login
+// Handle OAuth registration
 const handleOAuth = (provider) => {
   if (provider === 'google') {
     ElMessage.info('Google OAuth2 功能正在开发中')
     return
   }
   
-  // In a real implementation, this would redirect to the OAuth provider
-  // For demo purposes, we'll just show a message
-  ElMessage.info(`${provider} registration would redirect to authentication page`)
+  // Redirect to GitHub OAuth for registration
+  ElMessage.info(`${provider} 注册将重定向到认证页面`)
+  window.location.href = `http://127.0.0.1:58080/oauth2/authorization/${provider}`
 }
 
 // Watch email field to show verification code field

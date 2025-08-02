@@ -3,89 +3,9 @@
     <div class="form-container">
       <h1 class="form-title">重置密码</h1>
       
-      <template v-if="currentStep === 'request'">
+      <template v-if="!isSuccess">
         <p class="form-description">
-          输入您的邮箱地址，我们将向您发送验证码以重置密码。
-        </p>
-        
-        <el-form
-          ref="requestFormRef"
-          :model="requestForm"
-          :rules="requestRules"
-          @submit.native.prevent="handleRequestSubmit"
-        >
-          <el-form-item prop="email">
-            <el-input
-              v-model="requestForm.email"
-              placeholder="邮箱"
-              type="email"
-              prefix-icon="Message"
-            />
-          </el-form-item>
-          
-          <el-form-item>
-            <el-button
-              type="primary"
-              native-type="submit"
-              :loading="loading"
-              class="submit-button"
-            >
-              发送重置码
-            </el-button>
-          </el-form-item>
-        </el-form>
-      </template>
-      
-      <template v-else-if="currentStep === 'verify'">
-        <p class="form-description">
-          输入发送到 <strong>{{ requestForm.email }}</strong> 的验证码
-        </p>
-        
-        <el-form
-          ref="verifyFormRef"
-          :model="verifyForm"
-          :rules="verifyRules"
-          @submit.native.prevent="handleVerifySubmit"
-        >
-          <el-form-item prop="code">
-            <div class="verification-group">
-              <el-input
-                v-model="verifyForm.code"
-                placeholder="验证码"
-                prefix-icon="Check"
-              />
-              <el-button 
-                type="primary" 
-                :disabled="countdown > 0"
-                @click="resendCode"
-              >
-                {{ countdown > 0 ? `重新发送 ${countdown}s` : '重新发送' }}
-              </el-button>
-            </div>
-          </el-form-item>
-          
-          <el-form-item>
-            <el-button
-              type="primary"
-              native-type="submit"
-              :loading="loading"
-              class="submit-button"
-            >
-              验证码
-            </el-button>
-          </el-form-item>
-          
-          <div class="form-actions">
-            <button type="button" class="text-button" @click="goBack">
-              <el-icon><ArrowLeft /></el-icon> 返回
-            </button>
-          </div>
-        </el-form>
-      </template>
-      
-      <template v-else-if="currentStep === 'reset'">
-        <p class="form-description">
-          为您的账户创建新密码。
+          请填写您的邮箱地址、验证码和新密码来重置密码。
         </p>
         
         <el-form
@@ -94,9 +14,38 @@
           :rules="resetRules"
           @submit.native.prevent="handleResetSubmit"
         >
-          <el-form-item prop="password">
+          <el-form-item prop="email">
             <el-input
-              v-model="resetForm.password"
+              v-model="resetForm.email"
+              placeholder="邮箱"
+              type="email"
+              prefix-icon="Message"
+            />
+          </el-form-item>
+          
+          <el-form-item prop="emailCode">
+            <div class="verification-group">
+              <el-input
+                v-model="resetForm.emailCode"
+                placeholder="验证码"
+                prefix-icon="Check"
+                class="verification-input"
+              />
+              <el-button 
+                type="primary" 
+                :disabled="countdown > 0 || !resetForm.email"
+                @click="sendVerifyCode"
+                :loading="sendingCode"
+                class="verification-button"
+              >
+                {{ countdown > 0 ? `重新发送 ${countdown}s` : '发送验证码' }}
+              </el-button>
+            </div>
+          </el-form-item>
+          
+          <el-form-item prop="newPassword">
+            <el-input
+              v-model="resetForm.newPassword"
               placeholder="新密码"
               :type="showPassword ? 'text' : 'password'"
               prefix-icon="Lock"
@@ -132,7 +81,7 @@
         </el-form>
       </template>
       
-      <template v-else-if="currentStep === 'success'">
+      <template v-else>
         <div class="success-container">
           <el-icon class="success-icon"><CircleCheck /></el-icon>
           <h2>密码重置成功</h2>
@@ -143,7 +92,7 @@
         </div>
       </template>
       
-      <div class="auth-footer" v-if="currentStep !== 'success'">
+      <div class="auth-footer" v-if="!isSuccess">
         记住密码？
         <router-link to="/login" class="auth-link">
           登录
@@ -157,46 +106,25 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { authApi } from '@/api/auth'
 
 const router = useRouter()
-const requestFormRef = ref(null)
-const verifyFormRef = ref(null)
 const resetFormRef = ref(null)
 const loading = ref(false)
+const sendingCode = ref(false)
 const showPassword = ref(false)
 const countdown = ref(0)
-const currentStep = ref('request') // request, verify, reset, success
+const isSuccess = ref(false)
 
-// Request form data and rules
-const requestForm = reactive({
-  email: ''
-})
-
-const requestRules = {
-  email: [
-    { required: true, message: '请输入您的邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
-  ]
-}
-
-// Verify form data and rules
-const verifyForm = reactive({
-  code: ''
-})
-
-const verifyRules = {
-  code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码必须是6位数字', trigger: 'blur' }
-  ]
-}
-
-// Reset form data and rules
+// Reset form data
 const resetForm = reactive({
-  password: '',
+  email: '',
+  emailCode: '',
+  newPassword: '',
   confirmPassword: ''
 })
 
+// Validation functions
 const validatePass = (rule, value, callback) => {
   if (value === '') {
     callback(new Error('请输入您的新密码'))
@@ -211,15 +139,24 @@ const validatePass = (rule, value, callback) => {
 const validateConfirmPass = (rule, value, callback) => {
   if (value === '') {
     callback(new Error('请确认您的密码'))
-  } else if (value !== resetForm.password) {
+  } else if (value !== resetForm.newPassword) {
     callback(new Error('两次输入的密码不匹配'))
   } else {
     callback()
   }
 }
 
+// Form validation rules
 const resetRules = {
-  password: [
+  email: [
+    { required: true, message: '请输入您的邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+  ],
+  emailCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+    { len: 6, message: '验证码必须是6位数字', trigger: 'blur' }
+  ],
+  newPassword: [
     { required: true, validator: validatePass, trigger: 'blur' },
     { min: 6, message: '密码至少需要 6 个字符', trigger: 'blur' }
   ],
@@ -228,82 +165,47 @@ const resetRules = {
   ]
 }
 
-// Go back to previous step
-const goBack = () => {
-  if (currentStep.value === 'verify') {
-    currentStep.value = 'request'
-  } else if (currentStep.value === 'reset') {
-    currentStep.value = 'verify'
+// Send verification code
+const sendVerifyCode = async () => {
+  // Validate email first
+  if (!resetForm.email) {
+    ElMessage.error('请先输入邮箱地址')
+    return
   }
-}
-
-// Resend verification code
-const resendCode = async () => {
-  try {
-    // In a real app, this would resend the verification code
-    ElMessage.success(`验证码已重新发送至 ${requestForm.email}`)
-    
-    // Set countdown for resend button
-    countdown.value = 60
-    const timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
-    
-    // For demo purposes, auto-fill the verification code
-    setTimeout(() => {
-      verifyForm.code = '123456'
-    }, 2000)
-  } catch (error) {
-    ElMessage.error('重新发送验证码失败')
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(resetForm.email)) {
+    ElMessage.error('请输入有效的邮箱地址')
+    return
   }
-}
-
-// Handle request password reset
-const handleRequestSubmit = async () => {
-  if (!requestFormRef.value) return
   
   try {
-    await requestFormRef.value.validate()
-    loading.value = true
+    sendingCode.value = true
     
-    // In a real app, this would send the verification code to the email
-    setTimeout(() => {
-      ElMessage.success(`验证码已发送至 ${requestForm.email}`)
-      currentStep.value = 'verify'
-      
-      // For demo purposes, auto-fill the verification code
-      setTimeout(() => {
-        verifyForm.code = '123456'
-      }, 2000)
-      
-      loading.value = false
-    }, 1500)
-  } catch (error) {
-    console.error('Validation failed:', error)
-    loading.value = false
-  }
-}
-
-// Handle verify code
-const handleVerifySubmit = async () => {
-  if (!verifyFormRef.value) return
-  
-  try {
-    await verifyFormRef.value.validate()
-    loading.value = true
+    // Send verification code to email
+    const response = await authApi.sendVerifyCode(resetForm.email)
     
-    // In a real app, this would verify the code
-    setTimeout(() => {
-      ElMessage.success('验证成功')
-      currentStep.value = 'reset'
-      loading.value = false
-    }, 1500)
+    if (response.data.code === 200) {
+      ElMessage.success(`验证码已发送至 ${resetForm.email}`)
+      
+      // Set countdown for resend button
+      countdown.value = 60
+      const timer = setInterval(() => {
+        countdown.value--
+        if (countdown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    } else {
+      ElMessage.error(response.data.message || '发送验证码失败')
+    }
+    
+    sendingCode.value = false
   } catch (error) {
-    console.error('验证失败:', error)
-    loading.value = false
+    console.error('Send verification code failed:', error)
+    ElMessage.error('发送验证码失败，请稍后重试')
+    sendingCode.value = false
   }
 }
 
@@ -315,14 +217,27 @@ const handleResetSubmit = async () => {
     await resetFormRef.value.validate()
     loading.value = true
     
-    // In a real app, this would reset the password
-    setTimeout(() => {
+    // Prepare reset password data according to backend requirements
+    const resetData = {
+      email: resetForm.email,
+      emailCode: resetForm.emailCode,
+      newPassword: resetForm.newPassword
+    }
+    
+    // Call reset password API
+    const response = await authApi.resetPassword(resetData)
+    
+    if (response.data.code === 200) {
       ElMessage.success('密码重置成功')
-      currentStep.value = 'success'
-      loading.value = false
-    }, 1500)
+      isSuccess.value = true
+    } else {
+      ElMessage.error(response.data.message || '密码重置失败')
+    }
+    
+    loading.value = false
   } catch (error) {
-    console.error('Validation failed:', error)
+    console.error('Reset password failed:', error)
+    ElMessage.error('密码重置失败，请检查验证码是否正确')
     loading.value = false
   }
 }
@@ -355,6 +270,16 @@ const goToLogin = () => {
 .verification-group {
   display: flex;
   gap: 0.5rem;
+  width: 100%;
+}
+
+.verification-input {
+  flex: 1;
+}
+
+.verification-button {
+  width: 120px;
+  flex-shrink: 0;
 }
 
 .submit-button {

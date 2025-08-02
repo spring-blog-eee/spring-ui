@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { blogApi } from '../api/blog'
 import { getUserAvatarUrl } from '../utils/avatar'
+import { ensureHttps } from '../utils/url'
 
 export const useBlogStore = defineStore('blog', () => {
   const blogs = ref([])
@@ -46,7 +47,7 @@ export const useBlogStore = defineStore('blog', () => {
           ...blog,
           id: blog.id,
           title: blog.title,
-          cover: blog.imgUrl || '/default-cover.jpg',
+          cover: blog.imgUrl ? ensureHttps(blog.imgUrl) : '/default-cover.jpg',
           excerpt: blog.excerpt || '暂无摘要...',
           tags: JSON.parse(blog.tags),
           author: {
@@ -116,7 +117,7 @@ export const useBlogStore = defineStore('blog', () => {
         }
         
         // 拉取 markdown 文件内容
-        const markdownResponse = await fetch(blogData.contentUrl)
+        const markdownResponse = await fetch(ensureHttps(blogData.contentUrl))
         const markdownContent = await markdownResponse.text()
         
         // 构建完整的博客对象
@@ -124,7 +125,7 @@ export const useBlogStore = defineStore('blog', () => {
           id: blogData.id,
           title: blogData.title,
           content: markdownContent, // 保存原始markdown内容，不在这里渲染
-          cover: blogData.imgUrl || '/default-cover.jpg',
+          cover: blogData.imgUrl ? ensureHttps(blogData.imgUrl) : '/default-cover.jpg',
           tags: parsedTags,
           author: {
             id: blogData.userId,

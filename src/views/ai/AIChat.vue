@@ -705,7 +705,15 @@ onMounted(async () => {
   {
     return;
   }
-  models.value = result.data;
+  
+  // 根据用户权限过滤模型列表
+  let filteredModels = result.data;
+  if (!userStore.isAdmin) {
+    // 非管理员用户只能看到level≤1的模型
+    filteredModels = result.data.filter(model => model.level <= 1);
+  }
+  
+  models.value = filteredModels;
   
   if (models.value.length > 0) {
     selectedModel.value = models.value[0].modelName;

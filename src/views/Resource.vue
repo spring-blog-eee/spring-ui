@@ -218,6 +218,7 @@ import {
 } from '@element-plus/icons-vue'
 import { resourceApi } from '@/api/resource'
 import { useUserStore } from '@/stores/user'
+import { ensureHttps } from '@/utils/url'
 
 // 用户状态
 const userStore = useUserStore()
@@ -486,7 +487,7 @@ const uploadFileToOSS = async (file) => {
     }
 
     const signatureData = signatureResponse.data
-    const ossData = signatureData.data
+    const ossData = ensureHttps(signatureData.data)
     console.log(ossData)
 
     const response = await fetch(ossData, 
@@ -634,7 +635,7 @@ const downloadFile = async (file) => {
     const response = await resourceApi.getDownloadUrl(file)
     
     if (response.data && response.data.code === 200) {
-      const downloadUrl = response.data.data
+      const downloadUrl = ensureHttps(response.data.data)
       
       // 创建临时链接并触发下载
       const link = document.createElement('a')
@@ -708,7 +709,7 @@ const shareFile = async (file) => {
     const response = await resourceApi.getDownloadUrl(file)
     
     if (response.data && response.data.code === 200) {
-      const shareUrl = response.data.data
+      const shareUrl = ensureHttps(response.data.data)
       
       // 复制到剪贴板
       await navigator.clipboard.writeText(shareUrl)
